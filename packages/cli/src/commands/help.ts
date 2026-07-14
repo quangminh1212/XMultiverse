@@ -9,6 +9,10 @@ CÚ PHÁP:
   xmv <command> --json              Xuất JSON (cho AI agent parse)
   xmv <command> --verbose           Xuất thêm data chi tiết
 
+CHẨN ĐOÁN:
+  xmv doctor                       Kiểm tra tất cả: .env, AI key, backend, deps
+                                    → Cho biết đang thiếu gì và cách sửa
+
 LỆNH THUỘC DỰ ÁN:
   xmv start                         Khởi động backend server (background)
   xmv stop                          Dừng backend server
@@ -35,13 +39,24 @@ TIMELINE:
                                     Thêm sự kiện vào dòng thời gian
 
 VÍ DỤ CHO AI AGENT:
-  # Workflow đầy đủ (JSON output cho agent parse):
+  # Bước 0: Chẩn đoán môi trường
+  xmv doctor --json
+
+  # Bước 1: Workflow đầy đủ (JSON output cho agent parse):
   xmv start --json
   xmv world create --story "Một hiệp sĩ tìm kiếm thanh kiếm thần" --json
   xmv player create --world <worldId> --name "Kael" --role "Kiếm sĩ" --json
   xmv act --id <playerId> --action "Tiến vào rừng sâu" --json
   xmv event add --world <worldId> --title "Trận chiến đầu tiên" --desc "..." --year 2024 --json
   xmv stop --json
+
+JSON OUTPUT FORMAT:
+  Mọi lệnh --json xuất: { ok, command, message, data, steps, checklist?, missing?, nextSteps?, timestamp }
+  - ok:         true/false — thành công hay thất bại
+  - steps:      các bước đã thực hiện [{ index, total, label, status }]
+  - checklist:  kết quả kiểm tra (chỉ lệnh doctor)
+  - missing:    danh sách những thứ đang thiếu
+  - nextSteps:  gợi ý bước tiếp theo cần làm
 
 BIẾN MÔI TRƯỜNG:
   XMV_API_URL    URL backend (mặc định: http://localhost:3001)

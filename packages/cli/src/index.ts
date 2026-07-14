@@ -5,7 +5,7 @@
  */
 
 import { parseArgs } from './args.js';
-import { setMode, setVerbose, isJson, emit } from './feedback.js';
+import { setMode, setVerbose, emit, info } from './feedback.js';
 import { HELP_TEXT } from './commands/help.js';
 import { cmdHealth } from './commands/health.js';
 import { cmdStart, cmdStop, cmdStatus } from './commands/server.js';
@@ -13,6 +13,7 @@ import { cmdWorldCreate, cmdWorldList, cmdWorldGet } from './commands/world.js';
 import { cmdPlayerCreate, cmdPlayerList } from './commands/player.js';
 import { cmdAct, cmdHistory } from './commands/roleplay.js';
 import { cmdEventAdd } from './commands/event.js';
+import { cmdDoctor } from './commands/doctor.js';
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -23,7 +24,8 @@ async function main(): Promise<void> {
   }
 
   // Global flags
-  if (argv.includes('--json')) {
+  const jsonMode = argv.includes('--json');
+  if (jsonMode) {
     setMode('json');
     argv.splice(argv.indexOf('--json'), 1);
   }
@@ -39,12 +41,23 @@ async function main(): Promise<void> {
   const command = positional[0];
   const subcommand = positional[1];
 
+  // Log what we're about to do (goes to stderr in JSON mode)
+  if (!jsonMode) {
+    info(`Lệnh: ${command}${subcommand ? ' ' + subcommand : ''}`);
+  } else {
+    process.stderr.write(`[cmd] ${command}${subcommand ? ' ' + subcommand : ''}\n`);
+  }
+
   try {
     switch (command) {
       case 'help':
       case '--help':
       case '-h':
         console.log(HELP_TEXT);
+        break;
+
+      case 'doctor':
+        await cmdDoctor();
         break;
 
       case 'start':
@@ -76,6 +89,7 @@ async function main(): Promise<void> {
             break;
           default:
             console.error('Dùng: xmv world <create|list|get>');
+            console.error('Chạy "xmv help" để xem hướng dẫn.');
             process.exit(1);
         }
         break;
@@ -90,6 +104,7 @@ async function main(): Promise<void> {
             break;
           default:
             console.error('Dùng: xmv player <create|list>');
+            console.error('Chạy "xmv help" để xem hướng dẫn.');
             process.exit(1);
         }
         break;
@@ -109,16 +124,23 @@ async function main(): Promise<void> {
             break;
           default:
             console.error('Dùng: xmv event <add>');
+            console.error('Chạy "xmv help" để xem hướng dẫn.');
             process.exit(1);
         }
         break;
 
       default:
-        emit('cli', false, `Lệnh không xác định: "${command}". Chạy "xmv help" để xem hướng dẫn.`);
+        emit('cli', false, `Lệnh không xác định: "${command}".`, undefined, {
+          missing: [`Lệnh "${command}" không tồn tại`],
+          nextSteps: ['Chạy: xmv help để xem tất cả lệnh'],
+        });
         process.exit(1);
     }
   } catch (err: any) {
-    emit('cli', false, `Lỗi không mong đợi: ${err.message}`);
+    emit('cli', false, `Lỗi không mong đợi: ${err.message}`, undefined, {
+      missing: [err.message],
+      nextSteps: ['Chạy: xmv doctor để chẩn đoán', 'Chạy: xmv help để xem hướng dẫn'],
+    });
     process.exit(1);
   }
 }

@@ -1,12 +1,39 @@
 import { api, type World } from '../client.js';
-import { emit, printData, fatal } from '../feedback.js';
+import { emit, printData, fatal, step, stepDone, stepFail, info, beginSteps } from '../feedback.js';
 import { requireArg } from '../args.js';
 
 export async function cmdWorldCreate(flags: Record<string, string | boolean>): Promise<void> {
   const story = requireArg(flags, 'story');
+  beginSteps(3);
+
+  const s0 = step('Validate input');
+  if (story.length < 5) {
+    stepFail(s0);
+    fatal('world-create', 'Cốt truyện quá ngắn (cần ít nhất 5 ký tự)', undefined, {
+      missing: ['--story cần nội dung dài hơn'],
+    });
+  }
+  stepDone(s0);
+  info(`Story: "${story.slice(0, 60)}${story.length > 60 ? '...' : ''}" (${story.length} ký tự)`);
+
+  const s1 = step('Gọi AI tạo thế giới');
   try {
     const world = await api.createWorld(story);
-    emit('world-create', true, `Đã tạo thế giới "${world.name}" (ID: ${world.id})`, world);
+    stepDone(s1);
+    info(`AI đã trả về thế giới: "${world.name}"`);
+
+    const s2 = step('Phân tích kết quả');
+    stepDone(s2);
+    info(
+      `Timeline: ${world.timeline.length} events | Characters: ${world.characters.length} | Quests: ${world.quests.length}`,
+    );
+
+    emit('world-create', true, `Đã tạo thế giới "${world.name}" (ID: ${world.id})`, world, {
+      nextSteps: [
+        `Tạo nhân vật: xmv player create --world ${world.id} --name "..." --role "..."`,
+        `Xem chi tiết: xmv world get --id ${world.id}`,
+      ],
+    });
     printData({
       id: world.id,
       name: world.name,
@@ -22,14 +49,44 @@ export async function cmdWorldCreate(flags: Record<string, string | boolean>): P
       quests: world.quests.map((q) => q.title),
     });
   } catch (err: any) {
-    fatal('world-create', err.message);
+    stepFail(s1);
+    fatal('world-create', err.message, undefined, {
+      missing: [err.message],
+      nextSteps: [
+        'Kiểm tra backend: xmv health',
+        'Kiểm tra AI_API_KEY: xmv doctor',
+        'Nếu chưa có key, set DEMO_MODE=true trong .env',
+      ],
+    });
   }
 }
 
 export async function cmdWorldList(): Promise<void> {
+  beginSteps(2);
+  const s0 = step('Gọi API lấy danh sách thế giới');
   try {
     const worlds = await api.listWorlds();
-    emit('world-list', true, `Tìm thấy ${worlds.length} thế giới.`, { count: worlds.length });
+    stepDone(s0);
+    info(`Nhận được ${worlds.length} thế giới`);
+
+    const s1 = step('Hiển thị kết quả');
+    stepDone(s1);
+
+    emit(
+      'world-list',
+      true,
+      `Tìm thấy ${worlds.length} thế giới.`,
+      { count: worlds.length },
+      {
+        nextSteps:
+          worlds.length > 0
+            ? [
+                `Xem chi tiết: xmv world get --id <worldId>`,
+                `Tạo nhân vật: xmv player create --world <id> --name "..." --role "..."`,
+              ]
+            : ['Tạo thế giới mới: xmv world create --story "..."'],
+      },
+    );
     printData(
       worlds.map((w) => ({
         id: w.id,
@@ -39,15 +96,36 @@ export async function cmdWorldList(): Promise<void> {
       })),
     );
   } catch (err: any) {
-    fatal('world-list', err.message);
+    stepFail(s0);
+    fatal('world-list', err.message, undefined, {
+      missing: ['Không thể kết nối backend'],
+      nextSteps: ['Khởi động backend: xmv start', 'Chẩn đoán: xmv doctor'],
+    });
   }
 }
 
 export async function cmdWorldGet(flags: Record<string, string | boolean>): Promise<void> {
   const id = requireArg(flags, 'id');
+  beginSteps(2);
+
+  const s0 = step(`Lấy thế giới ID: ${id}`);
   try {
     const world = await api.getWorld(id);
-    emit('world-get', true, `Thế giới: ${world.name}`, world);
+    stepDone(s0);
+    info(`Thế giới: "${world.name}"`);
+
+    const s1 = step('Phân tích chi tiết');
+    stepDone(s1);
+    info(
+      `Factions: ${world.factions.length} | Timeline: ${world.timeline.length} | Characters: ${world.characters.length} | Quests: ${world.quests.length}`,
+    );
+
+    emit('world-get', true, `Thế giới: ${world.name}`, world, {
+      nextSteps: [
+        `Tạo nhân vật: xmv player create --world ${world.id} --name "..." --role "..."`,
+        `Thêm sự kiện: xmv event add --world ${world.id} --title "..." --desc "..."`,
+      ],
+    });
     printData({
       id: world.id,
       name: world.name,
@@ -61,6 +139,10 @@ export async function cmdWorldGet(flags: Record<string, string | boolean>): Prom
       quests: world.quests,
     });
   } catch (err: any) {
-    fatal('world-get', err.message);
+    stepFail(s0);
+    fatal('world-get', err.message, undefined, {
+      missing: [`Không tìm thấy thế giới ID: ${id}`],
+      nextSteps: ['Xem danh sách: xmv world list', 'Tạo mới: xmv world create --story "..."'],
+    });
   }
 }
