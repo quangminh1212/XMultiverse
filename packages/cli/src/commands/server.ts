@@ -1,5 +1,6 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import {
+  appendFileSync,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -32,11 +33,11 @@ function ensureDataDir(): void {
  */
 function buildLaunchCommand(): { cmd: string; args: string[]; label: string } {
   if (existsSync(BACKEND_DIST)) {
-    return { cmd: process.execPath, args: [BACKEND_DIST], label: `node dist/index.js` };
+    return { cmd: process.execPath, args: [BACKEND_DIST], label: 'node dist/index.js' };
   }
   if (existsSync(BACKEND_SRC)) {
     const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    return { cmd: npx, args: ['tsx', BACKEND_SRC], label: `npx tsx src/index.ts` };
+    return { cmd: npx, args: ['tsx', BACKEND_SRC], label: 'npx tsx src/index.ts' };
   }
   throw new Error(`Không tìm thấy backend entry point: ${BACKEND_DIST} hoặc ${BACKEND_SRC}`);
 }
@@ -65,28 +66,41 @@ async function waitForBoot(): Promise<{
   return { ok: false, error: lastError };
 }
 
+/** Escape a string for safe embedding in a PowerShell single-quoted string. */
+function escapePsString(s: string): string {
+  return s.replace(/'/g, "''");
+}
+
 export async function cmdStart(): Promise<void> {
   beginSteps(4);
   ensureDataDir();
 
-  // Step 1: Check if already running (PID file + health)
+  // Step 1: Check if already running (health first, then PID file)
   const s0 = step('Kiểm tra backend đã chạy chưa');
-  if (existsSync(PID_FILE)) {
-    const pid = parseInt(readFileSafe(PID_FILE), 10);
-    if (pid && isProcessAlive(pid)) {
-      // Verify via health that it's really our backend
-      try {
-        const res = await fetch(HEALTH_URL);
-        if (res.ok) {
-          stepDone(s0);
-          info(`Backend đã đang chạy (PID ${pid})`);
-          emit('start', true, `Backend đã đang chạy (PID ${pid})`, { pid, alreadyRunning: true });
-          return;
-        }
-      } catch {
-        // PID alive but health not responding — stale PID, fall through to restart
+
+  try {
+    const res = await fetch(HEALTH_URL);
+    if (res.ok) {
+      const health = (await res.json()) as { status: string; demoMode: boolean };
+      let pid = 0;
+      if (existsSync(PID_FILE)) {
+        pid = parseInt(readFileSafe(PID_FILE), 10);
       }
+      stepDone(s0);
+      info(`Backend đã đang chạy${pid ? ` (PID ${pid})` : ' (không có PID file)'} — health OK`);
+      emit('start', true, `Backend đã đang chạy${pid ? ` (PID ${pid})` : ''}.`, {
+        pid: pid || undefined,
+        alreadyRunning: true,
+        health,
+      });
+      return;
     }
+  } catch {
+    // Health not responding — backend not running, proceed to start
+  }
+
+  // Clean up stale PID file if any
+  if (existsSync(PID_FILE)) {
     info('PID file stale, sẽ khởi động lại...');
     try {
       unlinkSync(PID_FILE);
@@ -123,32 +137,81 @@ export async function cmdStart(): Promise<void> {
   const launch = buildLaunchCommand();
   const s2 = step(`Khởi động backend (${launch.label})`);
 
-  // Truncate log and create write streams for stdout/stderr
+  // Truncate log file
   writeFileSync(LOG_FILE, `Backend started with ${launch.label} at ${new Date().toISOString()}\n`);
-  const logStream = createWriteStream(LOG_FILE, { flags: 'a' });
 
-  const child = spawn(launch.cmd, launch.args, {
-    cwd: BACKEND_DIR,
-    detached: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true,
-    shell: false,
-  });
+  let pid: number | undefined;
 
-  // Pipe child stdout/stderr to log file
-  child.stdout?.pipe(logStream);
-  child.stderr?.pipe(logStream);
+  if (process.platform === 'win32') {
+    // On Windows, use PowerShell Start-Process to create a truly independent process
+    // that survives the parent CLI's exit (npx/tsx may use job objects that kill children).
+    const errLog = LOG_FILE + '.err';
+    const psScript = [
+      '$p = Start-Process',
+      `  -FilePath '${escapePsString(process.execPath)}'`,
+      `  -ArgumentList '"${escapePsString(BACKEND_DIST)}"'`,
+      `  -WorkingDirectory '${escapePsString(BACKEND_DIR)}'`,
+      '  -WindowStyle Hidden',
+      `  -RedirectStandardOutput '${escapePsString(LOG_FILE)}'`,
+      `  -RedirectStandardError '${escapePsString(errLog)}'`,
+      '  -PassThru',
+      'Write-Output $p.Id',
+    ].join(' ');
 
-  child.unref();
-
-  const pid = child.pid;
-  if (!pid) {
-    stepFail(s2);
-    logStream.end();
-    fatal('start', 'Không thể spawn backend process.', undefined, {
-      missing: ['spawn trả pid undefined'],
-      nextSteps: ['Chạy: xmv doctor để chẩn đoán', `Kiểm tra log: ${LOG_FILE}`],
+    info('Khởi động qua PowerShell Start-Process...');
+    const result = spawnSync('powershell', ['-NoProfile', '-Command', psScript], {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 15000,
     });
+
+    if (result.status !== 0 || !result.stdout.trim()) {
+      stepFail(s2);
+      try {
+        writeFileSync(LOG_FILE, `\nPowerShell error: ${result.stderr}\n`);
+      } catch {
+        /* ignore */
+      }
+      fatal('start', `Không thể khởi động backend qua PowerShell. Log: ${LOG_FILE}`, undefined, {
+        missing: [`PowerShell exit=${result.status}: ${result.stderr?.slice(0, 200)}`],
+        nextSteps: [`Kiểm tra log: type "${LOG_FILE}"`, 'Chạy: xmv doctor để chẩn đoán'],
+      });
+    }
+
+    pid = parseInt(result.stdout.trim(), 10);
+    if (!pid) {
+      stepFail(s2);
+      fatal('start', 'PowerShell không trả PID hợp lệ.', undefined, {
+        missing: [`PowerShell output: ${result.stdout.slice(0, 200)}`],
+        nextSteps: [`Kiểm tra log: type "${LOG_FILE}"`],
+      });
+    }
+  } else {
+    // On Unix, detached spawn works reliably
+    const logStream = createWriteStream(LOG_FILE, { flags: 'a' });
+    const child = spawn(launch.cmd, launch.args, {
+      cwd: BACKEND_DIR,
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    });
+
+    child.stdout?.pipe(logStream);
+    child.stderr?.pipe(logStream);
+    child.unref();
+
+    pid = child.pid;
+    if (!pid) {
+      stepFail(s2);
+      logStream.end();
+      fatal('start', 'Không thể spawn backend process.', undefined, {
+        missing: ['spawn trả pid undefined'],
+        nextSteps: ['Chạy: xmv doctor để chẩn đoán', `Kiểm tra log: ${LOG_FILE}`],
+      });
+    }
+
+    // Close log stream after a delay (let pipes drain)
+    setTimeout(() => logStream.end(), 5000);
   }
 
   writeFileSync(PID_FILE, String(pid));
@@ -161,7 +224,6 @@ export async function cmdStart(): Promise<void> {
   if (!boot.ok) {
     stepFail(s2);
     stepFail(s3);
-    logStream.end();
     fatal(
       'start',
       `Backend không health sau ${BOOT_TIMEOUT_MS / 1000}s. Log: ${LOG_FILE}`,
@@ -180,7 +242,6 @@ export async function cmdStart(): Promise<void> {
   stepDone(s2);
   stepDone(s3);
   info(`Health OK: demoMode=${boot.health!.demoMode}`);
-  logStream.end();
 
   emit(
     'start',
@@ -201,74 +262,120 @@ export async function cmdStart(): Promise<void> {
 export async function cmdStop(): Promise<void> {
   beginSteps(2);
 
-  const s0 = step('Kiểm tra PID file');
-  if (!existsSync(PID_FILE)) {
+  const s0 = step('Kiểm tra backend đang chạy');
+
+  // Check health first
+  let healthOk = false;
+  try {
+    const res = await fetch(HEALTH_URL);
+    healthOk = res.ok;
+  } catch {
+    // not running
+  }
+
+  if (!healthOk && !existsSync(PID_FILE)) {
     stepDone(s0);
-    info('Không tìm thấy PID file — backend không đang chạy');
-    emit('stop', true, 'Backend không đang chạy (không tìm thấy PID file).');
+    info('Backend không đang chạy (health không phản hồi, không có PID file)');
+    emit('stop', true, 'Backend không đang chạy.');
     return;
   }
   stepDone(s0);
 
   const s1 = step('Dừng backend process');
-  const pid = parseInt(readFileSafe(PID_FILE), 10);
-  if (!pid) {
-    stepFail(s1);
-    emit('stop', false, 'PID file rỗng hoặc không hợp lệ.', undefined, {
-      missing: ['PID file rỗng — xóa thủ công: del data\\.xmv-backend.pid'],
-    });
-    try {
-      unlinkSync(PID_FILE);
-    } catch {
-      /* ignore */
+
+  // Try PID file first
+  if (existsSync(PID_FILE)) {
+    const pid = parseInt(readFileSafe(PID_FILE), 10);
+    if (pid) {
+      info(`Thử dừng qua PID ${pid}...`);
+      try {
+        process.kill(pid);
+        info(`Đã gửi signal đến PID ${pid}`);
+        // Wait a moment for process to die
+        await sleep(1000);
+        // Verify
+        try {
+          const res = await fetch(HEALTH_URL);
+          if (!res.ok) {
+            stepDone(s1);
+            info('Backend đã dừng');
+            cleanupPidFile();
+            emit('stop', true, `Backend đã dừng (PID ${pid}).`, { pid });
+            return;
+          }
+        } catch {
+          stepDone(s1);
+          info('Backend đã dừng');
+          cleanupPidFile();
+          emit('stop', true, `Backend đã dừng (PID ${pid}).`, { pid });
+          return;
+        }
+      } catch (err: any) {
+        warn(`Không thể kill PID ${pid}: ${err.message}`);
+      }
     }
-    return;
   }
 
-  info(`Đang dừng PID ${pid}...`);
-  try {
-    killProcessTree(pid);
-    stepDone(s1);
-    info('Process đã dừng');
-    emit('stop', true, `Backend đã dừng (PID ${pid}).`, { pid });
-  } catch (err: any) {
-    stepFail(s1);
-    emit(
-      'stop',
-      false,
-      `Không thể dừng PID ${pid}: ${err.message}`,
-      { pid },
-      {
-        missing: [`Không thể kill PID ${pid} — có thể process đã chết`],
-        nextSteps: ['Xóa PID file thủ công: del data\\.xmv-backend.pid'],
-      },
-    );
+  // If still running, try finding process on port 3001
+  if (process.platform === 'win32') {
+    info('Thử dừng qua port 3001...');
+    try {
+      const result = spawnSync(
+        'powershell',
+        [
+          '-NoProfile',
+          '-Command',
+          '$c = Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue; if ($c) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }',
+        ],
+        { encoding: 'utf-8', windowsHide: true, timeout: 10000 },
+      );
+      if (result.status === 0) {
+        await sleep(1000);
+        try {
+          const res = await fetch(HEALTH_URL);
+          if (!res.ok) {
+            stepDone(s1);
+            info('Backend đã dừng');
+            cleanupPidFile();
+            emit('stop', true, 'Backend đã dừng (qua port 3001).');
+            return;
+          }
+        } catch {
+          stepDone(s1);
+          info('Backend đã dừng');
+          cleanupPidFile();
+          emit('stop', true, 'Backend đã dừng (qua port 3001).');
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 
-  try {
-    unlinkSync(PID_FILE);
-  } catch {
-    // ignore
-  }
+  stepFail(s1);
+  cleanupPidFile();
+  emit('stop', false, 'Không thể dừng backend.', undefined, {
+    missing: ['Không thể kill process — có thể cần quyền admin'],
+    nextSteps: ['Kiểm tra: xmv status', 'Dừng thủ công: taskkill /F /PID <pid>'],
+  });
 }
 
 export async function cmdStatus(): Promise<void> {
   beginSteps(1);
   const s0 = step('Kiểm tra backend');
 
-  // First check PID file
-  let pid = 0;
-  if (existsSync(PID_FILE)) {
-    pid = parseInt(readFileSafe(PID_FILE), 10);
-  }
-
-  // Verify via health endpoint (most reliable — PID could be stale/reused)
+  // Check health first
   try {
     const res = await fetch(HEALTH_URL);
     if (res.ok) {
       const health = (await res.json()) as { status: string; demoMode: boolean };
+      let pid = 0;
+      if (existsSync(PID_FILE)) {
+        pid = parseInt(readFileSafe(PID_FILE), 10);
+      }
       stepDone(s0);
-      info(`Backend phản hồi health: status=${health.status}, demoMode=${health.demoMode}`);
+      info(`Health OK: demoMode=${health.demoMode}`);
       emit('status', true, `Backend đang chạy${pid ? ` (PID ${pid})` : ''}.`, {
         pid: pid || undefined,
         running: true,
@@ -277,35 +384,22 @@ export async function cmdStatus(): Promise<void> {
       return;
     }
   } catch {
-    // health not responding
+    // not running
   }
 
-  // Health failed — check if PID at least alive
-  if (pid && isProcessAlive(pid)) {
-    stepDone(s0);
-    warn(`PID ${pid} đang sống nhưng health không phản hồi (có thể đang boot hoặc bị treo)`);
-    emit(
-      'status',
-      false,
-      `Backend process sống nhưng health không phản hồi (PID ${pid}).`,
-      { pid, running: false },
-      {
-        missing: ['Health không phản hồi — backend có thể đang boot hoặc bị treo'],
-        nextSteps: ['Đợi vài giây rồi thử lại: xmv status', 'Restart: xmv stop && xmv start'],
-      },
-    );
-  } else {
-    stepFail(s0);
-    emit(
-      'status',
-      false,
-      'Backend chưa chạy.',
-      { pid: pid || undefined, running: false },
-      {
-        missing: ['Backend chưa chạy'],
-        nextSteps: ['Khởi động: xmv start'],
-      },
-    );
+  stepFail(s0);
+  info('Health không phản hồi');
+  emit('status', false, 'Backend chưa chạy.', undefined, {
+    missing: ['Backend chưa chạy'],
+    nextSteps: ['Khởi động: xmv start'],
+  });
+}
+
+function cleanupPidFile(): void {
+  try {
+    unlinkSync(PID_FILE);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -314,39 +408,6 @@ function readFileSafe(path: string): string {
     return readFileSync(path, 'utf-8').trim();
   } catch {
     return '';
-  }
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Kill a process and its children. On Windows, uses `taskkill /F /T /PID`
- * to force-kill the entire process tree. On other platforms, sends SIGTERM.
- */
-function killProcessTree(pid: number): void {
-  if (process.platform === 'win32') {
-    // /T = kill child processes too, /F = force
-    const result = require('child_process').spawnSync(
-      'taskkill',
-      ['/F', '/T', '/PID', String(pid)],
-      {
-        stdio: 'ignore',
-        windowsHide: true,
-      },
-    );
-    if (result.status !== 0 && isProcessAlive(pid)) {
-      // taskkill failed and process still alive — fall back to process.kill
-      process.kill(pid);
-    }
-  } else {
-    process.kill(pid, 'SIGTERM');
   }
 }
 

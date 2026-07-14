@@ -2,6 +2,9 @@
  * Feedback helpers — all output goes through here so we can toggle
  * between human-readable text and machine-readable JSON.
  *
+ * All feedback is also written to the log file at AppData/XMultiverse/log.txt
+ * (auto-rotates when >100MB).
+ *
  * Logging layers (all go to stderr in JSON mode, so stdout stays clean
  * for the final JSON result):
  *   step()   — progress steps:  "[1/3] Đang tạo thế giới..."
@@ -10,6 +13,8 @@
  *   missing()— missing prereq:  "THIẾU: AI_API_KEY — thêm vào .env"
  *   emit()   — final result:    { ok, command, message, data, steps, timestamp }
  */
+
+import { fileLog, getLogFilePath, type LogLevel } from './file-logger.js';
 
 export type OutputMode = 'text' | 'json';
 
@@ -43,6 +48,7 @@ let currentMode: OutputMode = 'text';
 let verbose = false;
 let steps: Step[] = [];
 let stepTotal = 0;
+let currentCommand = 'cli';
 
 export function setMode(mode: OutputMode): void {
   currentMode = mode;
@@ -60,6 +66,10 @@ export function isJson(): boolean {
   return currentMode === 'json';
 }
 
+export function setCommand(cmd: string): void {
+  currentCommand = cmd;
+}
+
 /** Start a multi-step process. */
 export function beginSteps(total: number): void {
   steps = [];
@@ -72,6 +82,9 @@ export function step(label: string): number {
   const s: Step = { index, total: stepTotal || index, label, status: 'pending' };
   steps.push(s);
 
+  const logMsg = `[${index}/${stepTotal}] ${label}`;
+  fileLog('INFO', currentCommand, logMsg);
+
   if (currentMode === 'json') {
     process.stderr.write(`[step ${index}/${stepTotal}] ${label}...\n`);
   } else {
@@ -82,16 +95,31 @@ export function step(label: string): number {
 
 /** Mark a step as done. */
 export function stepDone(idx: number): void {
-  if (steps[idx]) steps[idx].status = 'done';
+  if (steps[idx]) {
+    steps[idx].status = 'done';
+    fileLog(
+      'INFO',
+      currentCommand,
+      `Step ${steps[idx].index}/${steps[idx].total} DONE: ${steps[idx].label}`,
+    );
+  }
 }
 
 /** Mark a step as failed. */
 export function stepFail(idx: number): void {
-  if (steps[idx]) steps[idx].status = 'fail';
+  if (steps[idx]) {
+    steps[idx].status = 'fail';
+    fileLog(
+      'ERROR',
+      currentCommand,
+      `Step ${steps[idx].index}/${steps[idx].total} FAIL: ${steps[idx].label}`,
+    );
+  }
 }
 
 /** Informational message (goes to stderr in JSON mode). */
 export function info(message: string): void {
+  fileLog('INFO', currentCommand, message);
   if (currentMode === 'json') {
     process.stderr.write(`[info] ${message}\n`);
   } else {
@@ -101,6 +129,7 @@ export function info(message: string): void {
 
 /** Warning message. */
 export function warn(message: string): void {
+  fileLog('WARN', currentCommand, message);
   if (currentMode === 'json') {
     process.stderr.write(`[warn] ${message}\n`);
   } else {
@@ -110,6 +139,7 @@ export function warn(message: string): void {
 
 /** Missing prerequisite — tells the agent exactly what's missing and how to fix. */
 export function missing(what: string, fix: string): void {
+  fileLog('WARN', currentCommand, `MISSING: ${what} — FIX: ${fix}`);
   if (currentMode === 'json') {
     process.stderr.write(`[MISSING] ${what} — FIX: ${fix}\n`);
   } else {
@@ -137,6 +167,10 @@ export function emit(
     nextSteps: extra?.nextSteps,
     timestamp: new Date().toISOString(),
   };
+
+  // Log final result to file
+  const level: LogLevel = ok ? 'INFO' : 'ERROR';
+  fileLog(level, command, `${ok ? 'OK' : 'FAIL'}: ${message}`);
 
   if (currentMode === 'json') {
     console.log(JSON.stringify(feedback, null, 2));
@@ -192,4 +226,9 @@ export function fatal(
 ): never {
   emit(command, false, message, data, extra);
   process.exit(1);
+}
+
+/** Get the log file path (for display). */
+export function getLogFile(): string {
+  return getLogFilePath();
 }

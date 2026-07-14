@@ -5,7 +5,8 @@
  */
 
 import { parseArgs } from './args.js';
-import { setMode, setVerbose, emit, info } from './feedback.js';
+import { setMode, setVerbose, setCommand, emit, info, getLogFile } from './feedback.js';
+import { fileLog } from './file-logger.js';
 import { HELP_TEXT } from './commands/help.js';
 import { cmdHealth } from './commands/health.js';
 import { cmdStart, cmdStop, cmdStatus } from './commands/server.js';
@@ -14,6 +15,7 @@ import { cmdPlayerCreate, cmdPlayerList } from './commands/player.js';
 import { cmdAct, cmdHistory } from './commands/roleplay.js';
 import { cmdEventAdd } from './commands/event.js';
 import { cmdDoctor } from './commands/doctor.js';
+import { cmdLog } from './commands/log.js';
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -40,12 +42,17 @@ async function main(): Promise<void> {
   const { positional, flags } = parseArgs(argv);
   const command = positional[0];
   const subcommand = positional[1];
+  const fullCommand = `${command}${subcommand ? ' ' + subcommand : ''}`;
+
+  // Set command scope for logging
+  setCommand(fullCommand);
+  fileLog('INFO', 'cli', `=== START: xmv ${fullCommand} ===`);
 
   // Log what we're about to do (goes to stderr in JSON mode)
   if (!jsonMode) {
-    info(`Lệnh: ${command}${subcommand ? ' ' + subcommand : ''}`);
+    info(`Lệnh: ${fullCommand}`);
   } else {
-    process.stderr.write(`[cmd] ${command}${subcommand ? ' ' + subcommand : ''}\n`);
+    process.stderr.write(`[cmd] ${fullCommand}\n`);
   }
 
   try {
@@ -58,6 +65,10 @@ async function main(): Promise<void> {
 
       case 'doctor':
         await cmdDoctor();
+        break;
+
+      case 'log':
+        await cmdLog(flags);
         break;
 
       case 'start':

@@ -12,6 +12,8 @@ CÚ PHÁP:
 CHẨN ĐOÁN:
   xmv doctor                       Kiểm tra tất cả: .env, AI key, backend, deps
                                     → Cho biết đang thiếu gì và cách sửa
+  xmv log [--lines 50]             Xem log file gần đây (mặc định 50 dòng)
+                                    → Log file ở: %LOCALAPPDATA%\XMultiverse\log.txt
 
 LỆNH THUỘC DỰ ÁN:
   xmv start                         Khởi động backend server (background)
@@ -60,4 +62,10 @@ JSON OUTPUT FORMAT:
 
 BIẾN MÔI TRƯỜNG:
   XMV_API_URL    URL backend (mặc định: http://localhost:3001)
+  XMV_DEBUG      true để bật debug logging
+
+LOG FILE:
+  Tất cả log được ghi vào: %LOCALAPPDATA%\XMultiverse\log.txt
+  Tự động xóa khi file vượt quá 100MB.
+  Xem log: xmv log --lines 100
 `.trim();
