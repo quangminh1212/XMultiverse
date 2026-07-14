@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# PID files
+*.pid
+
+# Logs
+*.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db

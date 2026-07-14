@@ -9,8 +9,10 @@
   ],
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev --workspace=@xmultiverse/backend\" \"npm run dev --workspace=@xmultiverse/frontend\"",
-    "build": "npm run build --workspace=@xmultiverse/backend && npm run build --workspace=@xmultiverse/frontend",
+    "build": "npm run build --workspace=@xmultiverse/backend && npm run build --workspace=@xmultiverse/frontend && npm run build --workspace=@xmultiverse/cli",
     "start": "npm run start --workspace=@xmultiverse/backend",
+    "cli": "npm run dev --workspace=@xmultiverse/cli",
+    "xmv": "npm run dev --workspace=@xmultiverse/cli --",
     "lint": "prettier --check \"**/*.{ts,tsx,js,json,css,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\"",
     "clean": "rimraf packages/*/dist packages/*/node_modules node_modules data"
