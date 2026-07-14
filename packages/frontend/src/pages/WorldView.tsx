@@ -71,81 +71,92 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
   }
 
   return (
-    <>
-      {error && <div className="card error">{error}</div>}
+    <div className="container" style={{ paddingTop: 32 }}>
+      {error && <div className="error">{error}</div>}
 
+      {/* World header */}
       <div className="card">
-        <button className="secondary" onClick={onBack} style={{ marginBottom: 12 }}>
+        <button className="secondary back-btn" onClick={onBack}>
           ← Quay lại danh sách
         </button>
-        <h2>{world.name}</h2>
-        <p>{world.description}</p>
-        <div style={{ marginTop: 12 }}>
-          <strong>Địa lý:</strong>
+        <div className="section-label">Thế giới</div>
+        <h2 style={{ fontSize: '1.8rem', marginBottom: 8 }}>{world.name}</h2>
+        <p style={{ color: 'var(--text2)', marginBottom: 20 }}>{world.description}</p>
+
+        <div className="detail-row">
+          <strong>🗺️ Địa lý:</strong>
           {world.geography.map((g) => (
             <span key={g} className="tag">
               {g}
             </span>
           ))}
         </div>
-        <div style={{ marginTop: 12 }}>
-          <strong>Hệ thống sức mạnh:</strong> {world.magicSystem || 'Không có'}
+        <div className="detail-row">
+          <strong>✨ Magic:</strong> {world.magicSystem || 'Không có'}
         </div>
-        <div style={{ marginTop: 8 }}>
-          <strong>Công nghệ:</strong> {world.technologyLevel || 'Bình thường'}
+        <div className="detail-row">
+          <strong>⚙️ Công nghệ:</strong> {world.technologyLevel || 'Bình thường'}
         </div>
       </div>
 
+      {/* Factions + Characters */}
       <div className="grid-2">
         <FactionList factions={world.factions} />
         <CharacterList characters={world.characters} />
       </div>
 
+      {/* Timeline + Quests */}
       <div className="grid-2">
         <div className="card">
-          <h2>Dòng thời gian</h2>
+          <h2>📅 Dòng thời gian</h2>
           <Timeline events={world.timeline} />
           <EventForm world={world} onUpdated={onWorldUpdated} />
         </div>
         <QuestList quests={world.quests} />
       </div>
 
+      {/* Roleplay */}
       <div className="card">
+        <div className="section-label">Nhập vai</div>
         <h2>Tham gia thế giới</h2>
         {!player ? (
           <form onSubmit={createPlayer}>
-            <input
-              placeholder="Tên nhân vật"
-              value={playerForm.name}
-              onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Vai trò (ví dụ: kiếm sĩ, pháp sư, thương nhân)"
-              value={playerForm.role}
-              onChange={(e) => setPlayerForm({ ...playerForm, role: e.target.value })}
-              required
-              style={{ marginTop: 8 }}
-            />
+            <div className="grid-2" style={{ gap: 12 }}>
+              <input
+                placeholder="Tên nhân vật"
+                value={playerForm.name}
+                onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })}
+                required
+              />
+              <input
+                placeholder="Vai trò (kiếm sĩ, pháp sư...)"
+                value={playerForm.role}
+                onChange={(e) => setPlayerForm({ ...playerForm, role: e.target.value })}
+                required
+              />
+            </div>
             <input
               placeholder="Phe phái (tùy chọn)"
               value={playerForm.faction}
               onChange={(e) => setPlayerForm({ ...playerForm, faction: e.target.value })}
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 12 }}
             />
             <textarea
               placeholder="Tiểu sử nhân vật"
               value={playerForm.backstory}
               onChange={(e) => setPlayerForm({ ...playerForm, backstory: e.target.value })}
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 12 }}
               rows={2}
             />
-            <button type="submit" disabled={loading} style={{ marginTop: 12 }}>
+            <button type="submit" disabled={loading} className="lg" style={{ marginTop: 16 }}>
+              {loading && <span className="spinner" />}
               Bước vào thế giới
             </button>
             {players.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <p>Hoặc chọn nhân vật cũ:</p>
+              <div style={{ marginTop: 20 }}>
+                <p style={{ color: 'var(--muted)', fontSize: '0.88rem', marginBottom: 8 }}>
+                  Hoặc chọn nhân vật cũ:
+                </p>
                 {players.map((p) => (
                   <button
                     key={p.id}
@@ -157,7 +168,7 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
                     }}
                     style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    {p.name}
+                    {p.name} — {p.role}
                   </button>
                 ))}
               </div>
@@ -176,6 +187,6 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
           />
         )}
       </div>
-    </>
+    </div>
   );
 }

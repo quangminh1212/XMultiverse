@@ -39,6 +39,7 @@ export interface World {
   timeline: TimelineEvent[];
   characters: Character[];
   quests: Quest[];
+  createdAt?: string;
 }
 
 export interface Player {

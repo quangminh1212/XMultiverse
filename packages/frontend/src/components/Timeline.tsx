@@ -6,8 +6,9 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
     <div className="timeline">
       {sorted.map((ev) => (
         <div key={ev.id} className={`timeline-item ${ev.important ? 'important' : ''}`}>
-          <strong>Năm {ev.year}</strong>: {ev.title}
-          <p style={{ color: 'var(--muted)', margin: '4px 0' }}>{ev.description}</p>
+          <div className="timeline-year">Năm {ev.year}</div>
+          <div className="timeline-title">{ev.title}</div>
+          <div className="timeline-desc">{ev.description}</div>
         </div>
       ))}
     </div>

@@ -17,7 +17,7 @@ export function HomePage() {
       setCurrentWorld(world);
       setStoryInput('');
     } catch {
-      /* error đã được set trong hook */
+      /* error already set in hook */
     }
   }
 
@@ -38,36 +38,53 @@ export function HomePage() {
 
   return (
     <>
-      {error && <div className="card error">{error}</div>}
+      {/* Create world section */}
+      <section className="section container" id="create">
+        <div className="section-label">Kiến tạo thế giới</div>
+        <h2 className="section-title">Nhập cốt truyện của bạn</h2>
+        <p className="section-subtitle" style={{ marginBottom: 32 }}>
+          AI sẽ phân tích và tạo ra toàn bộ thế giới: geography, factions, magic, timeline,
+          characters, quests.
+        </p>
 
-      <div className="card">
-        <h2>Tạo thế giới mới</h2>
-        <form onSubmit={handleCreate}>
-          <textarea
-            rows={4}
-            placeholder="Nhập cốt truyện hoặc mô tả câu chuyện của bạn ở đây..."
-            value={storyInput}
-            onChange={(e) => setStoryInput(e.target.value)}
-            required
-          />
-          <div style={{ marginTop: 12 }}>
-            <button type="submit" disabled={loading || !storyInput.trim()}>
-              {loading && <span className="spinner" />}
-              Kiến tạo thế giới
-            </button>
-          </div>
-        </form>
-      </div>
+        {error && <div className="error">{error}</div>}
 
+        <div className="card" style={{ maxWidth: 720, margin: '0 auto' }}>
+          <form onSubmit={handleCreate}>
+            <textarea
+              rows={5}
+              placeholder="Ví dụ: Một hiệp sĩ lang thang tìm kiếm thanh kiếm thần để đánh bại quỷ vương đang xâm lược vương quốc..."
+              value={storyInput}
+              onChange={(e) => setStoryInput(e.target.value)}
+              required
+            />
+            <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <button type="submit" disabled={loading || !storyInput.trim()} className="lg">
+                {loading && <span className="spinner" />}
+                {loading ? 'Đang kiến tạo...' : 'Kiến tạo thế giới'}
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                {storyInput.trim().length > 0 ? `${storyInput.trim().length} ký tự` : ''}
+              </span>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* World list */}
       {worlds.length > 0 && (
-        <div className="card">
-          <h2>Các thế giới đã tạo</h2>
+        <section className="section container" id="worlds">
+          <div className="section-label">Thế giới đã tạo</div>
+          <h2 className="section-title">Your Multiverse</h2>
+          <p className="section-subtitle" style={{ marginBottom: 32 }}>
+            {worlds.length} thế giới đang chờ bạn bước vào.
+          </p>
           <div className="world-list">
             {worlds.map((w) => (
               <WorldCard key={w.id} world={w} onClick={loadWorld} />
             ))}
           </div>
-        </div>
+        </section>
       )}
     </>
   );
