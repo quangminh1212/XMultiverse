@@ -1,0 +1,25 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="xgrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8b5cf6"/>
+      <stop offset="0.5" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="0.5" cy="0.5" r="0.5">
+      <stop stop-color="#a78bfa" stop-opacity="0.9"/>
+      <stop offset="0.7" stop-color="#6366f1" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Outer orb glow -->
+  <circle cx="32" cy="32" r="28" fill="url(#orb)" opacity="0.5"/>
+  <!-- Geometric X -->
+  <path d="M16 16 L28 32 L16 48" stroke="url(#xgrad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M48 16 L36 32 L48 48" stroke="url(#xgrad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Center multiverse dot -->
+  <circle cx="32" cy="32" r="5" fill="url(#xgrad)"/>
+  <circle cx="32" cy="32" r="2.5" fill="#fff" opacity="0.9"/>
+  <!-- Orbit rings -->
+  <ellipse cx="32" cy="32" rx="22" ry="8" stroke="url(#xgrad)" stroke-width="1.5" fill="none" opacity="0.3" transform="rotate(30 32 32)"/>
+  <ellipse cx="32" cy="32" rx="22" ry="8" stroke="url(#xgrad)" stroke-width="1.5" fill="none" opacity="0.2" transform="rotate(-30 32 32)"/>
+</svg>

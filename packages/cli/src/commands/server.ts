@@ -143,22 +143,20 @@ export async function cmdStart(): Promise<void> {
   let pid: number | undefined;
 
   if (process.platform === 'win32') {
-    // On Windows, use PowerShell Start-Process to create a truly independent process
-    // that survives the parent CLI's exit (npx/tsx may use job objects that kill children).
-    const errLog = LOG_FILE + '.err';
+    // On Windows, use WMI Win32_Process.Create to start a process that breaks
+    // away from the parent's job object. npx/tsx create jobs that kill all
+    // child processes when they exit. Start-Process and detached spawn do NOT
+    // break away from jobs. WMI-created processes run in their own session.
+    // Wrap in cmd /c for stdout/stderr redirection to log file.
+    const nodeCmd = `cmd /c ""${escapePsString(process.execPath)}" "${escapePsString(BACKEND_DIST)}" > "${escapePsString(LOG_FILE)}" 2>&1"`;
     const psScript = [
-      '$p = Start-Process',
-      `  -FilePath '${escapePsString(process.execPath)}'`,
-      `  -ArgumentList '"${escapePsString(BACKEND_DIST)}"'`,
-      `  -WorkingDirectory '${escapePsString(BACKEND_DIR)}'`,
-      '  -WindowStyle Hidden',
-      `  -RedirectStandardOutput '${escapePsString(LOG_FILE)}'`,
-      `  -RedirectStandardError '${escapePsString(errLog)}'`,
-      '  -PassThru',
-      'Write-Output $p.Id',
-    ].join(' ');
+      `$proc = Invoke-WmiMethod -Class Win32_Process -Name Create `,
+      `-ArgumentList @('${escapePsString(nodeCmd)}', '${escapePsString(BACKEND_DIR)}')`,
+      '; if ($proc.ReturnValue -ne 0) { Write-Error "WMI Create failed: $($proc.ReturnValue)"; exit 1 }',
+      '; Write-Output $proc.ProcessId',
+    ].join('');
 
-    info('Khởi động qua PowerShell Start-Process...');
+    info('Khởi động qua WMI Win32_Process.Create...');
     const result = spawnSync('powershell', ['-NoProfile', '-Command', psScript], {
       encoding: 'utf-8',
       windowsHide: true,
