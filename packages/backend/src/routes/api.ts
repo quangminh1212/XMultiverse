@@ -1,19 +1,40 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { generateWorldFromStory, generateRoleplayResponse } from '../services/worldgen';
 import {
   saveWorld,
   getWorld,
   listWorlds,
+  deleteWorld,
   savePlayer,
   getPlayer,
   getPlayersByWorld,
+  deletePlayer,
   addChatMessage,
   getChatHistory,
+  clearChatHistory,
+  saveSnapshot,
+  getSnapshot,
+  listSnapshotsByPlayer,
+  listSnapshotsByWorld,
+  deleteSnapshot,
 } from '../services/repository';
 import { info, warn } from '../services/logger';
-import type { Player, TimelineEvent } from '../types';
+import {
+  createDefaultStats,
+  inferStatFromAction,
+  inferDC,
+  skillCheck,
+  addXp,
+  rollDice,
+} from '../services/dice';
+import type { Player, TimelineEvent, InventoryItem, SaveSnapshot } from '../types';
 
 const router = Router();
+
+// ============================================================
+// Worlds
+// ============================================================
 
 router.post('/worlds', async (req, res, next) => {
   try {
@@ -50,6 +71,18 @@ router.get('/worlds/:id', (req, res) => {
   res.json(world);
 });
 
+router.delete('/worlds/:id', (req, res) => {
+  const world = getWorld(req.params.id);
+  if (!world) {
+    warn('api', `DELETE /worlds/${req.params.id} → 404`);
+    res.status(404).json({ error: 'Không tìm thấy thế giới' });
+    return;
+  }
+  deleteWorld(req.params.id);
+  info('api', `DELETE /worlds/${req.params.id} → 200: deleted "${world.name}"`);
+  res.json({ ok: true });
+});
+
 router.post('/worlds/:id/events', (req, res) => {
   const world = getWorld(req.params.id);
   if (!world) {
@@ -77,6 +110,10 @@ router.post('/worlds/:id/events', (req, res) => {
   res.json(world);
 });
 
+// ============================================================
+// Players
+// ============================================================
+
 router.post('/worlds/:id/players', (req, res) => {
   const world = getWorld(req.params.id);
   if (!world) {
@@ -98,14 +135,21 @@ router.post('/worlds/:id/players', (req, res) => {
     backstory: backstory || '',
     faction: faction || undefined,
     inventory: [],
+    stats: createDefaultStats(role),
     currentScene: world.description,
+    relationships: {},
+    sceneSummaries: [],
+    createdAt: Date.now(),
   };
   savePlayer(player);
   addChatMessage(player.id, {
     role: 'system',
     content: `Chào mừng ${name} đến với thế giới ${world.name}. Bạn là ${role}.`,
   });
-  info('api', `POST /worlds/${req.params.id}/players → 200: player="${name}" id=${player.id}`);
+  info(
+    'api',
+    `POST /worlds/${req.params.id}/players → 200: player="${name}" role=${role} id=${player.id}`,
+  );
   res.json(player);
 });
 
@@ -114,6 +158,33 @@ router.get('/worlds/:id/players', (req, res) => {
   info('api', `GET /worlds/${req.params.id}/players → 200: ${players.length} players`);
   res.json(players);
 });
+
+router.get('/players/:id', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    warn('api', `GET /players/${req.params.id} → 404`);
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  info('api', `GET /players/${req.params.id} → 200: "${player.name}"`);
+  res.json(player);
+});
+
+router.delete('/players/:id', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    warn('api', `DELETE /players/${req.params.id} → 404`);
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  deletePlayer(req.params.id);
+  info('api', `DELETE /players/${req.params.id} → 200: deleted "${player.name}"`);
+  res.json({ ok: true });
+});
+
+// ============================================================
+// Roleplay — with dice checks and stat effects
+// ============================================================
 
 router.post('/players/:id/act', async (req, res, next) => {
   try {
@@ -142,6 +213,15 @@ router.post('/players/:id/act', async (req, res, next) => {
       `POST /players/${req.params.id}/act: player="${player.name}" action="${action.slice(0, 60)}..."`,
     );
 
+    // Determine if a skill check is needed
+    const stat = inferStatFromAction(action);
+    let check = undefined;
+    if (stat && player.stats) {
+      const dc = inferDC(action);
+      check = skillCheck(stat, player.stats, dc);
+      info('api', `Skill check: ${check.description}`);
+    }
+
     const history = getChatHistory(player.id, 20)
       .filter((m) => m.role !== 'system')
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
@@ -151,9 +231,59 @@ router.post('/players/:id/act', async (req, res, next) => {
       player,
       history,
       action,
+      check,
     });
 
+    // Apply effects to player stats
+    if (result.effects) {
+      for (const effect of result.effects) {
+        const currentVal = player.stats[effect.stat] as number;
+        if (effect.stat === 'hp' || effect.stat === 'mp') {
+          const maxKey = effect.stat === 'hp' ? 'maxHp' : 'maxMp';
+          const max = player.stats[maxKey] as number;
+          (player.stats[effect.stat] as number) = Math.max(
+            0,
+            Math.min(max, currentVal + effect.delta),
+          );
+        } else {
+          (player.stats[effect.stat] as number) = currentVal + effect.delta;
+        }
+      }
+    }
+
+    // Apply item changes
+    if (result.itemChanges) {
+      for (const change of result.itemChanges) {
+        if (change.action === 'add') {
+          const existing = player.inventory.find((i) => i.name === change.item.name);
+          if (existing) {
+            existing.quantity += change.item.quantity;
+          } else {
+            player.inventory.push({ ...change.item, id: change.item.id || crypto.randomUUID() });
+          }
+        } else {
+          player.inventory = player.inventory.filter((i) => i.name !== change.item.name);
+        }
+      }
+    }
+
+    // Apply XP
+    if (result.xpGained && result.xpGained > 0) {
+      const newLevel = addXp(player.stats, result.xpGained);
+      if (newLevel) {
+        info('api', `${player.name} leveled up to ${newLevel}!`);
+      }
+    }
+
     player.currentScene = result.scene;
+
+    // Add scene summary (keep last 10)
+    const summary = result.scene.slice(0, 200);
+    player.sceneSummaries.push(summary);
+    if (player.sceneSummaries.length > 10) {
+      player.sceneSummaries = player.sceneSummaries.slice(-10);
+    }
+
     savePlayer(player);
 
     addChatMessage(player.id, { role: 'user', content: action });
@@ -163,6 +293,8 @@ router.post('/players/:id/act', async (req, res, next) => {
         scene: result.scene,
         events: result.events,
         choices: result.choices,
+        check: result.check,
+        xpGained: result.xpGained,
       }),
     });
 
@@ -178,14 +310,11 @@ router.post('/players/:id/act', async (req, res, next) => {
       }
       world.timeline.sort((a, b) => a.year - b.year);
       saveWorld(world);
-      info(
-        'api',
-        `POST /players/${req.params.id}/act: ${result.events.length} events added to timeline`,
-      );
+      info('api', `POST /players/${req.params.id}/act: ${result.events.length} events added`);
     }
 
     info('api', `POST /players/${req.params.id}/act → 200: ${result.choices.length} choices`);
-    res.json(result);
+    res.json({ ...result, player });
   } catch (err) {
     next(err);
   }
@@ -195,6 +324,262 @@ router.get('/players/:id/history', (req, res) => {
   const history = getChatHistory(req.params.id, 50);
   info('api', `GET /players/${req.params.id}/history → 200: ${history.length} messages`);
   res.json(history);
+});
+
+router.delete('/players/:id/history', (req, res) => {
+  clearChatHistory(req.params.id);
+  info('api', `DELETE /players/${req.params.id}/history → 200: cleared`);
+  res.json({ ok: true });
+});
+
+// ============================================================
+// Inventory — inspired by ai_rpg + openRPG
+// ============================================================
+
+router.post('/players/:id/inventory', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    warn('api', `POST /players/${req.params.id}/inventory → 404`);
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const { name, description, type, quantity, value, effects } = req.body;
+  if (!name) {
+    res.status(400).json({ error: 'name là bắt buộc' });
+    return;
+  }
+  const item: InventoryItem = {
+    id: crypto.randomUUID(),
+    name,
+    description: description || '',
+    type: type || 'misc',
+    quantity: quantity || 1,
+    value,
+    effects,
+  };
+  const existing = player.inventory.find((i) => i.name === name);
+  if (existing) {
+    existing.quantity += item.quantity;
+  } else {
+    player.inventory.push(item);
+  }
+  savePlayer(player);
+  info('api', `POST /players/${req.params.id}/inventory → 200: added "${name}" x${item.quantity}`);
+  res.json(player);
+});
+
+router.delete('/players/:id/inventory/:itemId', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  player.inventory = player.inventory.filter((i) => i.id !== req.params.itemId);
+  savePlayer(player);
+  info('api', `DELETE /players/${req.params.id}/inventory/${req.params.itemId} → 200`);
+  res.json(player);
+});
+
+router.post('/players/:id/inventory/:itemId/use', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const item = player.inventory.find((i) => i.id === req.params.itemId);
+  if (!item) {
+    res.status(404).json({ error: 'Không tìm thấy vật phẩm' });
+    return;
+  }
+  if (!item.effects || item.effects.length === 0) {
+    res.status(400).json({ error: 'Vật phẩm này không thể sử dụng' });
+    return;
+  }
+
+  const results: string[] = [];
+  for (const effect of item.effects) {
+    if (effect.stat === 'hp' || effect.stat === 'mp') {
+      const maxKey = effect.stat === 'hp' ? 'maxHp' : 'maxMp';
+      const max = player.stats[maxKey] as number;
+      const before = player.stats[effect.stat] as number;
+      (player.stats[effect.stat] as number) = Math.min(max, before + effect.modifier);
+      results.push(
+        `${effect.stat.toUpperCase()} +${effect.modifier} (${before} → ${player.stats[effect.stat]})`,
+      );
+    } else {
+      (player.stats[effect.stat] as number) += effect.modifier;
+      results.push(`${effect.stat} +${effect.modifier}`);
+    }
+  }
+
+  item.quantity -= 1;
+  if (item.quantity <= 0) {
+    player.inventory = player.inventory.filter((i) => i.id !== item.id);
+  }
+
+  savePlayer(player);
+  info(
+    'api',
+    `POST /players/${req.params.id}/inventory/${req.params.itemId}/use → 200: ${results.join(', ')}`,
+  );
+  res.json({ player, effects: results });
+});
+
+// ============================================================
+// Relationships — inspired by ai_rpg disposition system
+// ============================================================
+
+router.get('/players/:id/relationships', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  res.json(player.relationships || {});
+});
+
+router.post('/players/:id/relationships/:npcName', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const npcName = req.params.npcName;
+  const { trust, respect, friendship, fear, note } = req.body;
+  if (!player.relationships) player.relationships = {};
+  if (!player.relationships[npcName]) {
+    player.relationships[npcName] = { trust: 0, respect: 0, friendship: 0, fear: 0, notes: [] };
+  }
+  const rel = player.relationships[npcName];
+  if (trust !== undefined) rel.trust = Math.max(-100, Math.min(100, rel.trust + trust));
+  if (respect !== undefined) rel.respect = Math.max(-100, Math.min(100, rel.respect + respect));
+  if (friendship !== undefined)
+    rel.friendship = Math.max(-100, Math.min(100, rel.friendship + friendship));
+  if (fear !== undefined) rel.fear = Math.max(-100, Math.min(100, rel.fear + fear));
+  if (note) rel.notes.push(note);
+  savePlayer(player);
+  info('api', `POST /players/${req.params.id}/relationships/${npcName} → 200: updated`);
+  res.json(player.relationships[npcName]);
+});
+
+// ============================================================
+// Dice — standalone roll endpoint
+// ============================================================
+
+router.post('/roll', (req, res) => {
+  const { notation, stat, playerId } = req.body;
+  if (!notation) {
+    res.status(400).json({ error: 'notation là bắt buộc (vd: 1d20, 3d6)' });
+    return;
+  }
+  const result = rollDice(notation);
+  info('api', `POST /roll: ${notation} = ${result}`);
+  res.json({ notation, result, rolls: [result] });
+});
+
+router.post('/players/:id/check', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const { stat, dc } = req.body;
+  if (!stat) {
+    res.status(400).json({ error: 'stat là bắt buộc' });
+    return;
+  }
+  const dcValue = Number(dc) || 12;
+  const check = skillCheck(stat, player.stats, dcValue);
+  info('api', `POST /players/${req.params.id}/check → 200: ${check.description}`);
+  res.json(check);
+});
+
+// ============================================================
+// Save / Load snapshots — inspired by ai_rpg
+// ============================================================
+
+router.post('/players/:id/saves', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const world = getWorld(player.worldId);
+  if (!world) {
+    res.status(404).json({ error: 'Không tìm thấy thế giới' });
+    return;
+  }
+  const { name } = req.body;
+  const snapshot: SaveSnapshot = {
+    id: uuidv4(),
+    name: name || `Save ${new Date().toLocaleString('vi-VN')}`,
+    worldId: world.id,
+    playerId: player.id,
+    createdAt: Date.now(),
+    worldData: world,
+    playerData: player,
+    chatHistory: getChatHistory(player.id, 200),
+  };
+  saveSnapshot(snapshot);
+  info(
+    'api',
+    `POST /players/${req.params.id}/saves → 200: snapshot="${snapshot.name}" id=${snapshot.id}`,
+  );
+  res.json(snapshot);
+});
+
+router.get('/players/:id/saves', (req, res) => {
+  const snapshots = listSnapshotsByPlayer(req.params.id);
+  info('api', `GET /players/${req.params.id}/saves → 200: ${snapshots.length} saves`);
+  res.json(
+    snapshots.map((s) => ({
+      id: s.id,
+      name: s.name,
+      createdAt: s.createdAt,
+      worldId: s.worldId,
+      playerId: s.playerId,
+    })),
+  );
+});
+
+router.post('/saves/:id/load', (req, res) => {
+  const snapshot = getSnapshot(req.params.id);
+  if (!snapshot) {
+    res.status(404).json({ error: 'Không tìm thấy save' });
+    return;
+  }
+  // Restore world and player
+  saveWorld(snapshot.worldData);
+  savePlayer(snapshot.playerData);
+  // Clear and restore chat history
+  clearChatHistory(snapshot.playerId);
+  for (const msg of snapshot.chatHistory) {
+    addChatMessage(snapshot.playerId, msg);
+  }
+  info('api', `POST /saves/${req.params.id}/load → 200: restored "${snapshot.name}"`);
+  res.json({
+    world: snapshot.worldData,
+    player: snapshot.playerData,
+    chatHistory: snapshot.chatHistory,
+  });
+});
+
+router.delete('/saves/:id', (req, res) => {
+  deleteSnapshot(req.params.id);
+  info('api', `DELETE /saves/${req.params.id} → 200: deleted`);
+  res.json({ ok: true });
+});
+
+router.get('/worlds/:id/saves', (req, res) => {
+  const snapshots = listSnapshotsByWorld(req.params.id);
+  res.json(
+    snapshots.map((s) => ({
+      id: s.id,
+      name: s.name,
+      createdAt: s.createdAt,
+      playerId: s.playerId,
+    })),
+  );
 });
 
 export default router;

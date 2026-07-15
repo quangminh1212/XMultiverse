@@ -47,16 +47,16 @@ export default function App() {
       <section className="container">
         <div className="stats">
           <div className="stat">
-            <div className="stat-num">6</div>
-            <div className="stat-label">Thành phần thế giới</div>
+            <div className="stat-num">8</div>
+            <div className="stat-label">Tính năng RPG</div>
           </div>
           <div className="stat">
             <div className="stat-num">∞</div>
             <div className="stat-label">Cốt truyện khả thi</div>
           </div>
           <div className="stat">
-            <div className="stat-num">3</div>
-            <div className="stat-label">Lựa chọn mỗi hành động</div>
+            <div className="stat-num">1d20</div>
+            <div className="stat-label">Dice system</div>
           </div>
           <div className="stat">
             <div className="stat-num">CLI</div>
@@ -65,48 +65,64 @@ export default function App() {
         </div>
       </section>
 
-      {/* Feature cards 01-04 */}
+      {/* Feature cards 01-08 */}
       <section className="section container" id="how">
         <div className="section-label">Cách hoạt động</div>
         <h2 className="section-title">Từ câu chuyện đến thế giới nhập vai</h2>
         <p className="section-subtitle">
-          Bốn bước từ ý tưởng đến thế giới sống động mà bạn có thể bước vào.
+          Tám tính năng RPG đầy đủ — từ world building đến dice checks, inventory, và NPC
+          relationships.
         </p>
         <div className="features" style={{ marginTop: 40 }}>
           <div className="feature-card">
             <div className="feature-num">01</div>
             <div className="feature-icon">✍️</div>
             <h3>Viết cốt truyện</h3>
-            <p>
-              Nhập mô tả câu chuyện của bạn — dù ngắn hay dài, AI sẽ phân tích và xây dựng thế giới
-              phù hợp.
-            </p>
+            <p>Nhập mô tả câu chuyện — AI phân tích và xây dựng thế giới phù hợp.</p>
           </div>
           <div className="feature-card">
             <div className="feature-num">02</div>
             <div className="feature-icon">🌍</div>
             <h3>AI kiến tạo</h3>
-            <p>
-              AI tạo geography, factions, magic system, timeline, characters, quests — tất cả từ một
-              câu chuyện.
-            </p>
+            <p>Geography, factions, magic, timeline, characters, quests — từ một câu chuyện.</p>
           </div>
           <div className="feature-card">
             <div className="feature-num">03</div>
-            <div className="feature-icon">🎭</div>
-            <h3>Tạo nhân vật</h3>
-            <p>
-              Chọn tên, vai trò, phe phái, tiểu sử. Bước vào thế giới với nhân vật của riêng bạn.
-            </p>
+            <div className="feature-icon">📊</div>
+            <h3>Stats & Inventory</h3>
+            <p>HP/MP/level/XP, 5 attributes, túi đồ với vũ khí, giáp, thuốc — dùng và vứt bỏ.</p>
           </div>
           <div className="feature-card">
             <div className="feature-num">04</div>
+            <div className="feature-icon">�</div>
+            <h3>Dice & Skill Checks</h3>
+            <p>1d20 + modifier vs DC. Critical, fumble, auto-infer stat từ hành động.</p>
+          </div>
+        </div>
+        <div className="features" style={{ marginTop: 20 }}>
+          <div className="feature-card">
+            <div className="feature-num">05</div>
+            <div className="feature-icon">🤝</div>
+            <h3>NPC Relationships</h3>
+            <p>Trust, respect, friendship, fear — NPCs thay đổi thái độ theo tương tác.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-num">06</div>
             <div className="feature-icon">⚔️</div>
             <h3>Nhập vai</h3>
-            <p>
-              Thực hiện hành động, AI phản hồi với scene mới, sự kiện timeline, và 3 lựa chọn tiếp
-              theo.
-            </p>
+            <p>AI phản hồi scene, effects, items, XP, và 3 lựa chọn tiếp theo.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-num">07</div>
+            <div className="feature-icon">💾</div>
+            <h3>Save / Load</h3>
+            <p>Lưu snapshot thế giới + nhân vật + chat. Khôi phục bất cứ lúc nào.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-num">08</div>
+            <div className="feature-icon">🖥️</div>
+            <h3>CLI cho AI Agent</h3>
+            <p>xmv doctor, world create, act, log — tất cả qua command line.</p>
           </div>
         </div>
       </section>

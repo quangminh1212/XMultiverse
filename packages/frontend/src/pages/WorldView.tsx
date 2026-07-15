@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import type { World, Player } from '../types';
+import type { World, Player, RoleplayResult } from '../types';
 import { api } from '../services/api';
 import { EventForm } from '../components/EventForm';
 import { Timeline } from '../components/Timeline';
 import { FactionList, CharacterList, QuestList } from '../components/WorldDetails';
 import { RoleplayPanel } from '../components/RoleplayPanel';
+import { StatsPanel } from '../components/StatsPanel';
+import { InventoryPanel } from '../components/InventoryPanel';
+import { RelationshipsPanel } from '../components/RelationshipsPanel';
+import { DiceRoller } from '../components/DiceRoller';
 
 interface WorldViewProps {
   world: World;
@@ -18,13 +22,12 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
   const [playerForm, setPlayerForm] = useState({ name: '', role: '', backstory: '', faction: '' });
   const [actionInput, setActionInput] = useState('');
   const [history, setHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [lastResult, setLastResult] = useState<{
-    scene: string;
-    events: string[];
-    choices: string[];
-  } | null>(null);
+  const [lastResult, setLastResult] = useState<RoleplayResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'stats' | 'inventory' | 'relationships' | 'dice'>(
+    'stats',
+  );
 
   async function fetchPlayers() {
     const data = await api.listPlayers(world.id);
@@ -59,7 +62,12 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
         { role: 'user', content: actionInput },
         { role: 'assistant', content: result.scene },
       ]);
-      setPlayer({ ...player, currentScene: result.scene });
+      // Update player from response if available
+      if (result.player) {
+        setPlayer(result.player);
+      } else {
+        setPlayer({ ...player, currentScene: result.scene });
+      }
       setActionInput('');
       const updated = await api.getWorld(world.id);
       onWorldUpdated(updated);
@@ -67,6 +75,18 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!player) return;
+    const name = prompt('Tên save:', `Save ${new Date().toLocaleString('vi-VN')}`);
+    if (!name) return;
+    try {
+      await api.createSave(player.id, name);
+      alert('Đã lưu!');
+    } catch (err: any) {
+      alert('Lỗi: ' + err.message);
     }
   }
 
@@ -115,7 +135,7 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
         <QuestList quests={world.quests} />
       </div>
 
-      {/* Roleplay */}
+      {/* Roleplay section */}
       <div className="card">
         <div className="section-label">Nhập vai</div>
         <h2>Tham gia thế giới</h2>
@@ -168,23 +188,67 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
                     }}
                     style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    {p.name} — {p.role}
+                    {p.name} — {p.role} (Lv{p.stats?.level || 1})
                   </button>
                 ))}
               </div>
             )}
           </form>
         ) : (
-          <RoleplayPanel
-            player={player}
-            history={history}
-            lastResult={lastResult}
-            loading={loading}
-            onAct={() => act()}
-            onPickChoice={(c) => setActionInput(c)}
-            actionInput={actionInput}
-            setActionInput={setActionInput}
-          />
+          <>
+            {/* Tab navigation */}
+            <div className="tab-nav">
+              <button
+                className={activeTab === 'stats' ? 'tab-active' : 'tab'}
+                onClick={() => setActiveTab('stats')}
+              >
+                📊 Stats
+              </button>
+              <button
+                className={activeTab === 'inventory' ? 'tab-active' : 'tab'}
+                onClick={() => setActiveTab('inventory')}
+              >
+                🎒 Túi đồ ({player.inventory.length})
+              </button>
+              <button
+                className={activeTab === 'relationships' ? 'tab-active' : 'tab'}
+                onClick={() => setActiveTab('relationships')}
+              >
+                🤝 NPCs ({Object.keys(player.relationships || {}).length})
+              </button>
+              <button
+                className={activeTab === 'dice' ? 'tab-active' : 'tab'}
+                onClick={() => setActiveTab('dice')}
+              >
+                🎲 Dice
+              </button>
+              <button className="tab save-btn" onClick={handleSave}>
+                💾 Save
+              </button>
+            </div>
+
+            {/* Tab content */}
+            {activeTab === 'stats' && player.stats && <StatsPanel stats={player.stats} />}
+            {activeTab === 'inventory' && <InventoryPanel player={player} onUpdate={setPlayer} />}
+            {activeTab === 'relationships' && (
+              <RelationshipsPanel relationships={player.relationships || {}} />
+            )}
+            {activeTab === 'dice' && <DiceRoller playerId={player.id} />}
+
+            {/* Roleplay panel always visible below tabs */}
+            <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+              <RoleplayPanel
+                player={player}
+                history={history}
+                lastResult={lastResult}
+                loading={loading}
+                onAct={() => act()}
+                onPickChoice={(c) => setActionInput(c)}
+                actionInput={actionInput}
+                setActionInput={setActionInput}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

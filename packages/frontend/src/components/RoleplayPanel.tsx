@@ -50,6 +50,50 @@ export function RoleplayPanel({
         ))}
       </div>
 
+      {/* Dice check result */}
+      {lastResult?.check && (
+        <div className={`check-banner ${lastResult.check.success ? 'success' : 'fail'}`}>
+          <span className="check-banner-icon">
+            {lastResult.check.roll === 20
+              ? '🎯'
+              : lastResult.check.roll === 1
+                ? '💀'
+                : lastResult.check.success
+                  ? '✅'
+                  : '❌'}
+          </span>
+          <span>{lastResult.check.description}</span>
+        </div>
+      )}
+
+      {/* Stat effects */}
+      {lastResult?.effects && lastResult.effects.length > 0 && (
+        <div className="effects-banner">
+          {lastResult.effects.map((eff, i) => (
+            <span key={i} className={`effect-tag ${eff.delta > 0 ? 'pos' : 'neg'}`}>
+              {eff.stat.toUpperCase()} {eff.delta > 0 ? '+' : ''}
+              {eff.delta} — {eff.reason}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* XP gained */}
+      {lastResult?.xpGained && lastResult.xpGained > 0 && (
+        <div className="xp-banner">✨ +{lastResult.xpGained} XP</div>
+      )}
+
+      {/* Item changes */}
+      {lastResult?.itemChanges && lastResult.itemChanges.length > 0 && (
+        <div className="item-changes-banner">
+          {lastResult.itemChanges.map((ic, i) => (
+            <span key={i} className={`item-change-tag ${ic.action}`}>
+              {ic.action === 'add' ? '📦 Nhận:' : '📉 Mất:'} {ic.item.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -58,7 +102,7 @@ export function RoleplayPanel({
       >
         <div style={{ display: 'flex', gap: 12 }}>
           <input
-            placeholder="Nhập hành động của bạn..."
+            placeholder="Nhập hành động của bạn... (vd: tấn công quỷ, khám phá hang động, thuyết phục NPC)"
             value={actionInput}
             onChange={(e) => setActionInput(e.target.value)}
             disabled={loading}

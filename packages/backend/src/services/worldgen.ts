@@ -1,7 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config';
 import { callAi, stripCodeFences } from './ai-client';
-import type { World, RoleplayResult } from '../types';
+import type {
+  World,
+  RoleplayResult,
+  Player,
+  PlayerStats,
+  InventoryItem,
+  DiceCheckResult,
+} from '../types';
 
 const WORLD_SYSTEM_PROMPT = `Bạn là một kiến trúc sư thế giới (world builder) và lịch sử gia. Nhiệm vụ của bạn là phân tích câu chuyện/cốt truyện người dùng cung cấp và tạo ra một thế giới hoàn chỉnh theo định dạng JSON.
 
@@ -33,18 +40,24 @@ Quy tắc:
 - Quests nên có 3-5 nhiệm vụ dành cho người chơi.
 - Chỉ trả về JSON, không thêm giải thích ngoài.`;
 
-const ROLEPLAY_SYSTEM_PROMPT = `Bạn là Game Master của một thế giới mở. Dựa trên thông tin thế giới, timeline, nhân vật và người chơi dưới đây, hãy tiếp tục câu chuyện khi người chơi thực hiện một hành động.
+const ROLEPLAY_SYSTEM_PROMPT = `Bạn là Game Master của một thế giới mở. Dựa trên thông tin thế giới, timeline, nhân vật, chỉ số người chơi và hành động, hãy tiếp tục câu chuyện.
 
 Đầu ra JSON:
 {
-  "scene": "Mô tả cảnh và hệ quả của hành động người chơi, 2-4 câu, hấp dẫn như tiểu thuyết",
-  "events": ["sự kiện mới xảy ra với thế giới/timeline nếu có"],
-  "choices": ["lựa chọn 1", "lựa chọn 2", "lựa chọn 3"]
+  "scene": "Mô tả cảnh và hệ quả của hành động, 2-4 câu, hấp dẫn như tiểu thuyết",
+  "events": ["sự kiện timeline mới nếu có"],
+  "choices": ["lựa chọn 1", "lựa chọn 2", "lựa chọn 3"],
+  "effects": [{"stat": "hp|mp|strength|agility|intelligence|charisma|luck", "delta": -5, "reason": "lý do"}],
+  "itemChanges": [{"item": {"id": "uuid", "name": "tên", "description": "mô tả", "type": "weapon|armor|potion|key|misc|quest", "quantity": 1, "value": 10}, "action": "add|remove"}],
+  "xpGained": 10
 }
 
 Quy tắc:
-- events chỉ ghi nếu hành động thực sự tạo ra sự kiện timeline đáng kể, không thì để mảng rỗng.
-- choices là 3 gợi ý hành động tiếp theo cho người chơi.
+- effects chỉ ghi nếu hành động làm thay đổi chỉ số (sát thương, hồi phục, buff).
+- itemChanges chỉ ghi nếu nhận/mất vật phẩm.
+- xpGained: 5-50 tùy độ khó hành động.
+- events chỉ ghi nếu tạo sự kiện timeline đáng kể.
+- choices là 3 gợi ý hành động tiếp theo.
 - Chỉ trả về JSON.`;
 
 function buildDemoWorld(storyInput: string): World {
@@ -210,23 +223,26 @@ export async function generateWorldFromStory(storyInput: string): Promise<World>
 
 export interface RoleplayInput {
   world: World;
-  player: { name: string; role: string; backstory: string; currentScene: string };
+  player: Player;
   history: { role: 'user' | 'assistant'; content: string }[];
   action: string;
+  /** Optional pre-computed dice check result to include in AI context. */
+  check?: DiceCheckResult;
 }
 
 export async function generateRoleplayResponse(input: RoleplayInput): Promise<RoleplayResult> {
   if (config.ai.demoMode || !config.ai.apiKey) {
-    return {
-      scene: `Bạn vừa thực hiện: "${input.action}". Trong bản demo, AI chưa được kích hoạt, nhưng cảnh tưởng tượng như sau: ${input.player.name} dùng khả năng ${input.player.role} để đối mặt với thử thách trong ${input.world.name}. Mọi thứ bắt đầu thay đổi xung quanh bạn.`,
-      events: input.action.toLowerCase().includes('chiến đấu')
-        ? [`${input.player.name} tham gia một trận chiến lớn`]
-        : [],
-      choices: ['Tiếp tục khám phá', 'Quay về thành phố', 'Tìm kiếm đồng minh'],
-    };
+    return buildDemoRoleplayResponse(input);
   }
 
-  const context = `THẾ GIỚI: ${input.world.name}\nMô tả: ${input.world.description}\nĐịa lý: ${input.world.geography.join(', ')}\nPhe phái: ${input.world.factions.map((f) => f.name).join(', ')}\nHệ thống sức mạnh: ${input.world.magicSystem || 'Không'}\nCông nghệ: ${input.world.technologyLevel || 'Bình thường'}\n\nNHÂN VẬT NGƯỜI CHƠI: ${input.player.name} (${input.player.role})\nTiểu sử: ${input.player.backstory}\nCảnh hiện tại: ${input.player.currentScene}\n\nHÀNH ĐỘNG: ${input.action}`;
+  const statsLine = formatStatsForContext(input.player.stats);
+  const inventoryLine =
+    input.player.inventory.length > 0
+      ? input.player.inventory.map((i) => `${i.name} x${i.quantity}`).join(', ')
+      : 'Không có';
+  const checkLine = input.check ? `\nKẾT QUẢ KIỂM TRA: ${input.check.description}` : '';
+
+  const context = `THẾ GIỚI: ${input.world.name}\nMô tả: ${input.world.description}\nĐịa lý: ${input.world.geography.join(', ')}\nPhe phái: ${input.world.factions.map((f) => f.name).join(', ')}\nHệ thống sức mạnh: ${input.world.magicSystem || 'Không'}\nCông nghệ: ${input.world.technologyLevel || 'Bình thường'}\n\nNHÂN VẬT NGƯỜI CHƠI: ${input.player.name} (${input.player.role})\nTiểu sử: ${input.player.backstory}\nCảnh hiện tại: ${input.player.currentScene}\nChỉ số: ${statsLine}\nTúi đồ: ${inventoryLine}${checkLine}\n\nHÀNH ĐỘNG: ${input.action}`;
 
   const content = await callAi([
     { role: 'system', content: ROLEPLAY_SYSTEM_PROMPT },
@@ -234,4 +250,79 @@ export async function generateRoleplayResponse(input: RoleplayInput): Promise<Ro
   ]);
 
   return JSON.parse(stripCodeFences(content));
+}
+
+function formatStatsForContext(stats: PlayerStats): string {
+  return `Lv${stats.level} HP${stats.hp}/${stats.maxHp} MP${stats.mp}/${stats.maxMp} STR${stats.strength} AGI${stats.agility} INT${stats.intelligence} CHA${stats.charisma}`;
+}
+
+function buildDemoRoleplayResponse(input: RoleplayInput): RoleplayResult {
+  const action = input.action;
+  const player = input.player;
+  const lower = action.toLowerCase();
+
+  // Combat scenario
+  if (/fight|attack|kill|battle|chiến|đánh|giết/i.test(lower)) {
+    const dmg = Math.floor(Math.random() * 20) + 5;
+    player.stats.hp = Math.max(1, player.stats.hp - Math.floor(dmg / 2));
+    return {
+      scene: `${player.name} rút vũ khí và lao vào chiến đấu! Một trận đánh nảy lửa diễn ra. Bạn nhận ${Math.floor(dmg / 2)} sát thương nhưng chiến thắng. (Demo mode)`,
+      events: [`${player.name} tham gia trận chiến`],
+      choices: ['Tiếp tục tiến lên', 'Nghỉ ngơi hồi phục', 'Loot chiến lợi phẩm'],
+      effects: [{ stat: 'hp', delta: -Math.floor(dmg / 2), reason: 'Sát thương chiến đấu' }],
+      xpGained: 25,
+      check: input.check,
+    };
+  }
+
+  // Exploration
+  if (/explore|search|look|find|khám|tìm|nhìn/i.test(lower)) {
+    const foundItem = Math.random() > 0.5;
+    if (foundItem) {
+      const item: InventoryItem = {
+        id: crypto.randomUUID(),
+        name: 'Bình thuốc hồi phục',
+        description: 'Một bình thuốc đỏ phát sáng nhẹ.',
+        type: 'potion',
+        quantity: 1,
+        value: 10,
+        effects: [{ stat: 'hp', modifier: 30, duration: 'instant' }],
+      };
+      return {
+        scene: `${player.name} khám phá khu vực và tìm thấy một vật phẩm! Trong đống đổ nát, một bình thuốc phát sáng nhẹ thu hút sự chú ý của bạn.`,
+        events: [],
+        choices: ['Nhặt bình thuốc', 'Bỏ qua và đi tiếp', 'Kiểm tra kỹ hơn'],
+        itemChanges: [{ item, action: 'add' }],
+        xpGained: 10,
+        check: input.check,
+      };
+    }
+    return {
+      scene: `${player.name} đi khắp khu vực nhưng không tìm thấy gì đặc biệt. Không gian xung quanh yên tĩnh một cách đáng ngờ.`,
+      events: [],
+      choices: ['Đi về hướng khác', 'Nghỉ ngơi', 'Dùng kỹ năng đặc biệt'],
+      xpGained: 5,
+      check: input.check,
+    };
+  }
+
+  // Talk/social
+  if (/talk|speak|ask|negotiate|nói|hỏi|thuyết/i.test(lower)) {
+    return {
+      scene: `${player.name} bắt đầu cuộc đối thoại. Người đối diện lắng nghe với sự tò mò. (Demo mode) Cuộc trò chuyện có thể dẫn đến nhiều hướng khác nhau.`,
+      events: [],
+      choices: ['Thuyết phục họ', 'Đe dọa', 'Hỏi thông tin'],
+      xpGained: 8,
+      check: input.check,
+    };
+  }
+
+  // Default
+  return {
+    scene: `Bạn vừa thực hiện: "${action}". ${player.name} dùng khả năng ${player.role} để đối mặt với thử thách trong ${input.world.name}. Mọi thứ bắt đầu thay đổi xung quanh bạn. (Demo mode)`,
+    events: [],
+    choices: ['Tiếp tục khám phá', 'Quay về thành phố', 'Tìm kiếm đồng minh'],
+    xpGained: 5,
+    check: input.check,
+  };
 }

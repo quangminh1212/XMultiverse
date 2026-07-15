@@ -16,6 +16,16 @@ import { cmdAct, cmdHistory } from './commands/roleplay.js';
 import { cmdEventAdd } from './commands/event.js';
 import { cmdDoctor } from './commands/doctor.js';
 import { cmdLog } from './commands/log.js';
+import {
+  cmdStats,
+  cmdInventory,
+  cmdUseItem,
+  cmdRoll,
+  cmdCheck,
+  cmdSave,
+  cmdLoad,
+  cmdSaves,
+} from './commands/rpg.js';
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -126,6 +136,39 @@ async function main(): Promise<void> {
 
       case 'history':
         await cmdHistory(flags);
+        break;
+
+      // RPG commands (stats, inventory, dice, save/load)
+      case 'stats':
+        await cmdStats(flags);
+        break;
+
+      case 'inventory':
+        await cmdInventory(flags);
+        break;
+
+      case 'use-item':
+        await cmdUseItem(flags);
+        break;
+
+      case 'roll':
+        await cmdRoll(flags);
+        break;
+
+      case 'check':
+        await cmdCheck(flags);
+        break;
+
+      case 'save':
+        await cmdSave(flags);
+        break;
+
+      case 'load':
+        await cmdLoad(flags);
+        break;
+
+      case 'saves':
+        await cmdSaves(flags);
         break;
 
       case 'event':

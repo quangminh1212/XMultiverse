@@ -36,6 +36,23 @@ NHẬP VAI:
                                     Thực hiện hành động nhập vai
   xmv history --id <playerId>       Xem lịch sử chat
 
+RPG STATS & INVENTORY:
+  xmv stats --id <playerId>         Xem chỉ số (HP/MP/level/XP/attributes)
+  xmv inventory --id <playerId>     Xem túi đồ
+  xmv use-item --id <playerId> --item <itemId>
+                                    Sử dụng vật phẩm
+
+DICE & SKILL CHECKS:
+  xmv roll --notation "1d20"        Roll xúc xắc (vd: 1d20, 3d6, 2d10)
+  xmv check --id <playerId> --stat strength --dc 12
+                                    Skill check (1d20 + modifier vs DC)
+
+SAVE / LOAD:
+  xmv save --id <playerId> --name "..."
+                                    Tạo save snapshot
+  xmv load --save <saveId>          Load save snapshot
+  xmv saves --id <playerId>         Liệt kê saves
+
 TIMELINE:
   xmv event add --world <id> --title "..." --desc "..." [--year 2024] [--important]
                                     Thêm sự kiện vào dòng thời gian
