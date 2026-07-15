@@ -349,13 +349,93 @@ export async function cmdStop(): Promise<void> {
     } catch {
       // ignore
     }
+  } else {
+    // Unix: try lsof (macOS/Linux) then fuser (Linux only)
+    info('Thử dừng qua port 3001 (lsof)...');
+    try {
+      const lsofResult = spawnSync('lsof', ['-ti', 'tcp:3001'], {
+        encoding: 'utf-8',
+        timeout: 5000,
+      });
+      if (lsofResult.status === 0 && lsofResult.stdout.trim()) {
+        const pids = lsofResult.stdout.trim().split('\n').filter(Boolean);
+        for (const pidStr of pids) {
+          const pid = parseInt(pidStr, 10);
+          if (pid) {
+            try {
+              process.kill(pid, 'SIGTERM');
+              info(`Đã gửi SIGTERM đến PID ${pid}`);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        await sleep(1500);
+        try {
+          const res = await fetch(HEALTH_URL);
+          if (!res.ok) {
+            stepDone(s1);
+            info('Backend đã dừng');
+            cleanupPidFile();
+            emit('stop', true, 'Backend đã dừng (qua lsof port 3001).');
+            return;
+          }
+        } catch {
+          stepDone(s1);
+          info('Backend đã dừng');
+          cleanupPidFile();
+          emit('stop', true, 'Backend đã dừng (qua lsof port 3001).');
+          return;
+        }
+      }
+    } catch {
+      // lsof not available
+    }
+
+    // Fallback: fuser (Linux only)
+    if (process.platform === 'linux') {
+      info('Thử dừng qua fuser...');
+      try {
+        const fuserResult = spawnSync('fuser', ['-k', '3001/tcp'], {
+          encoding: 'utf-8',
+          timeout: 5000,
+        });
+        if (fuserResult.status !== null) {
+          await sleep(1500);
+          try {
+            const res = await fetch(HEALTH_URL);
+            if (!res.ok) {
+              stepDone(s1);
+              info('Backend đã dừng');
+              cleanupPidFile();
+              emit('stop', true, 'Backend đã dừng (qua fuser port 3001).');
+              return;
+            }
+          } catch {
+            stepDone(s1);
+            info('Backend đã dừng');
+            cleanupPidFile();
+            emit('stop', true, 'Backend đã dừng (qua fuser port 3001).');
+            return;
+          }
+        }
+      } catch {
+        // fuser not available
+      }
+    }
   }
 
   stepFail(s1);
   cleanupPidFile();
+  const manualKillCmd =
+    process.platform === 'win32'
+      ? 'taskkill /F /PID <pid>'
+      : process.platform === 'darwin'
+        ? 'lsof -ti tcp:3001 | xargs kill -9'
+        : 'fuser -k 3001/tcp';
   emit('stop', false, 'Không thể dừng backend.', undefined, {
     missing: ['Không thể kill process — có thể cần quyền admin'],
-    nextSteps: ['Kiểm tra: xmv status', 'Dừng thủ công: taskkill /F /PID <pid>'],
+    nextSteps: ['Kiểm tra: xmv status', `Dừng thủ công: ${manualKillCmd}`],
   });
 }
 

@@ -2,7 +2,10 @@
  * Feedback helpers — all output goes through here so we can toggle
  * between human-readable text and machine-readable JSON.
  *
- * All feedback is also written to the log file at AppData/XMultiverse/log.txt
+ * All feedback is also written to a platform-specific log file:
+ *   Windows: %LOCALAPPDATA%\XMultiverse\log.txt
+ *   macOS:   ~/Library/Logs/XMultiverse/log.txt
+ *   Linux:   ~/.local/share/XMultiverse/log.txt
  * (auto-rotates when >100MB).
  *
  * Logging layers (all go to stderr in JSON mode, so stdout stays clean

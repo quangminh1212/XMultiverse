@@ -27,6 +27,21 @@
 - **Chỉnh sửa timeline**: người chơi có thể bổ sung sự kiện lịch sử.
 - **Lưu trữ SQLite**: worlds, players, lịch sử chat.
 - **Demo mode**: chạy thử không cần AI API key.
+- **Cross-platform**: chạy trên Windows, macOS, và Linux.
+
+## Yêu cầu hệ thống
+
+| Yêu cầu     | Phiên bản    | Ghi chú                                  |
+| ----------- | ------------ | ---------------------------------------- |
+| Node.js     | >= 18        | Cần thiết cho `fetch` built-in           |
+| npm         | >= 9         | Đi kèm Node.js                           |
+| Hệ điều hành| Windows 10+ / macOS 11+ / Linux (glibc 2.31+) | `better-sqlite3` cần native build |
+
+### Ghi chú theo nền tảng
+
+- **Windows**: `better-sqlite3` cần Visual Studio Build Tools (cài qua `npm install -g windows-build-tools` hoặc "Desktop development with C++" workload trong VS Installer). Hoặc dùng prebuilt binary (mặc định).
+- **macOS**: Cần Xcode Command Line Tools (`xcode-select --install`).
+- **Linux**: Cần `python3`, `make`, `g++` (cho native build). Trên Ubuntu/Debian: `sudo apt install build-essential python3`.
 
 ## Công nghệ
 
@@ -102,7 +117,14 @@ xmultiverse/
 2. **Cấu hình môi trường:**
 
    ```bash
+   # macOS / Linux
    cp .env.example .env
+
+   # Windows (Command Prompt)
+   copy .env.example .env
+
+   # Windows (PowerShell)
+   Copy-Item .env.example .env
    ```
 
    Mở file `.env` và điền:
@@ -148,6 +170,33 @@ xmultiverse/
    - Frontend: http://localhost:5173
    - Backend: http://localhost:3001
    - Health check: http://localhost:3001/health
+
+### Sử dụng CLI
+
+```bash
+# Build CLI trước (nếu chưa build)
+npm run build
+
+# Chạy CLI trực tiếp
+node packages/cli/dist/index.js help
+node packages/cli/dist/index.js doctor
+node packages/cli/dist/index.js start
+node packages/cli/dist/index.js world create --story "..." --json
+
+# Hoặc link globally
+npm link
+xmv help
+```
+
+### Vị trí log file (theo nền tảng)
+
+| Nền tảng | Đường dẫn                                   |
+| -------- | ------------------------------------------- |
+| Windows  | `%LOCALAPPDATA%\XMultiverse\log.txt`        |
+| macOS    | `~/Library/Logs/XMultiverse/log.txt`        |
+| Linux    | `~/.local/share/XMultiverse/log.txt`        |
+
+Log file tự động xóa khi vượt quá 100MB.
 
 ## Cách sử dụng
 

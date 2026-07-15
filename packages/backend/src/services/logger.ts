@@ -3,7 +3,10 @@ import { dirname, join } from 'path';
 import { homedir } from 'os';
 
 /**
- * File logger — writes structured logs to AppData/Local/XMultiverse/log.txt
+ * File logger — writes structured logs to a platform-specific location:
+ *   Windows: %LOCALAPPDATA%\XMultiverse\log.txt
+ *   macOS:   ~/Library/Logs/XMultiverse/log.txt
+ *   Linux:   ~/.local/share/XMultiverse/log.txt
  * Auto-rotates (deletes) when the file exceeds 100MB.
  */
 

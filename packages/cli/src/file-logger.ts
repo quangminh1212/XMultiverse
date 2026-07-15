@@ -3,7 +3,10 @@ import { dirname, join } from 'path';
 import { homedir } from 'os';
 
 /**
- * CLI file logger — writes to AppData/Local/XMultiverse/log.txt
+ * CLI file logger — writes to a platform-specific location:
+ *   Windows: %LOCALAPPDATA%\XMultiverse\log.txt
+ *   macOS:   ~/Library/Logs/XMultiverse/log.txt
+ *   Linux:   ~/.local/share/XMultiverse/log.txt
  * Same file as backend, so all logs are in one place.
  * Auto-rotates (deletes) when the file exceeds 100MB.
  */

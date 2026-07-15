@@ -77,13 +77,15 @@ export async function cmdDoctor(): Promise<void> {
     info(`File .env: OK`);
   } else {
     stepFail(s0);
+    const copyCmd =
+      process.platform === 'win32' ? 'copy .env.example .env' : 'cp .env.example .env';
     checklist.push({
       name: 'File .env',
       ok: false,
       detail: 'Không tìm thấy file .env',
-      fix: 'Chạy: cp .env.example .env',
+      fix: `Chạy: ${copyCmd}`,
     });
-    missingItems.push('File .env — chạy: cp .env.example .env');
+    missingItems.push(`File .env — chạy: ${copyCmd}`);
   }
 
   // Step 2: Check AI_API_KEY
@@ -182,7 +184,9 @@ export async function cmdDoctor(): Promise<void> {
     nextSteps.push('Chạy: npm install (cài dependencies)');
   }
   if (!env.hasEnvFile) {
-    nextSteps.push('Chạy: cp .env.example .env (tạo file cấu hình)');
+    const copyCmd =
+      process.platform === 'win32' ? 'copy .env.example .env' : 'cp .env.example .env';
+    nextSteps.push(`Chạy: ${copyCmd} (tạo file cấu hình)`);
   }
   if (!env.hasApiKey && !env.demoMode) {
     nextSteps.push('Thêm AI_API_KEY vào .env HOẶC set DEMO_MODE=true');
