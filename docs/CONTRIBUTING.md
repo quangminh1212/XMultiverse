@@ -20,7 +20,7 @@ npm run dev                             # backend :3001 + frontend :5173
 ## Code standards
 
 - **TypeScript** for backend, frontend, and CLI.
-- Follow existing package layout (see [README.md](./README.md)).
+- Follow existing package layout (see [README.md](./README.md) and repo `packages/`).
 - File names: **kebab-case** for modules; **PascalCase** for React components.
 - Commits: [Conventional Commits](https://www.conventionalcommits.org/) in English, one short line:
   - `feat: add location travel graph`

@@ -16,8 +16,8 @@ Brief description of the change.
 - [ ] `npm test` passes
 - [ ] `npm run lint` passes (or ran `npm run format`)
 - [ ] Conventional Commit message
-- [ ] CHANGELOG.md updated (if user-facing)
-- [ ] Docs/AGENTS.md updated (if CLI/API changed)
+- [ ] docs/CHANGELOG.md updated (if user-facing)
+- [ ] docs/AGENTS.md updated (if CLI/API changed)
 
 ## Test plan
 

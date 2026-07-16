@@ -5,7 +5,7 @@
   "description": "AI-powered open-world platform: turn any story, film, or book into a navigable world you can explore and roleplay in.",
   "license": "MIT",
   "author": "XMultiverse Contributors",
-  "homepage": "https://github.com/xmultiverse/xmultiverse#readme",
+  "homepage": "https://github.com/xmultiverse/xmultiverse/blob/main/docs/README.md",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xmultiverse/xmultiverse.git"
