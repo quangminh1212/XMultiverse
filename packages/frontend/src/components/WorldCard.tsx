@@ -18,6 +18,7 @@ export function WorldCard({ world, onClick }: WorldCardProps) {
     <div className="world-card" onClick={() => onClick(world.id)}>
       <h3>{world.name}</h3>
       {world.sourceType && <span className="badge">{world.sourceType}</span>}
+      {world.scale && <span className="badge">{world.scale}</span>}
       <p className="world-card-desc">{world.description}</p>
       <div className="world-card-meta">
         <span>📅 {created}</span>

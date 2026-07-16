@@ -162,8 +162,9 @@ export const api = {
   health: () => request<HealthStatus>('GET', '/health'),
   listWorlds: () => request<World[]>('GET', '/api/worlds'),
   getWorld: (id: string) => request<World>('GET', `/api/worlds/${id}`),
-  createWorld: (story: string, sourceType?: string) =>
-    request<World>('POST', '/api/worlds', { story, sourceType }),
+  createWorld: (story: string, sourceType?: string, scale?: string) =>
+    request<World>('POST', '/api/worlds', { story, sourceType, scale }),
+  getConfig: () => request<unknown>('GET', '/api/config'),
   listLocations: (worldId: string) =>
     request<Location[]>('GET', `/api/worlds/${worldId}/locations`),
   exportWorld: (id: string) =>

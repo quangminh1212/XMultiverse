@@ -284,7 +284,9 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
           ← Quay lại danh sách
         </button>
         <div className="section-label">
-          Thế giới mở{world.sourceType ? ` · ${world.sourceType}` : ''}
+          Thế giới mở
+          {world.sourceType ? ` · ${world.sourceType}` : ''}
+          {world.scale ? ` · scale:${world.scale}` : ''}
         </div>
         <h2 style={{ fontSize: '1.8rem', marginBottom: 8 }}>{world.name}</h2>
         <p style={{ color: 'var(--text2)', marginBottom: 20 }}>{world.description}</p>

@@ -3,7 +3,14 @@ import { useWorlds } from '../hooks/useWorlds';
 import { WorldCard } from '../components/WorldCard';
 import { WorldView } from './WorldView';
 import { api } from '../services/api';
-import type { SourceType, World } from '../types';
+import type { SourceType, World, WorldScale } from '../types';
+
+const SCALES: { id: WorldScale; label: string; hint: string }[] = [
+  { id: 'compact', label: 'Compact', hint: '~5 địa điểm' },
+  { id: 'standard', label: 'Standard', hint: '~8 địa điểm' },
+  { id: 'expansive', label: 'Expansive', hint: '~16 địa điểm' },
+  { id: 'epic', label: 'Epic', hint: '~28 địa điểm' },
+];
 
 const PRESETS: { label: string; type: SourceType; icon: string; story: string }[] = [
   {
@@ -54,13 +61,14 @@ export function HomePage() {
   const { worlds, loading, error, createWorld, removeWorld, importWorld } = useWorlds();
   const [storyInput, setStoryInput] = useState('');
   const [sourceType, setSourceType] = useState<SourceType>('story');
+  const [scale, setScale] = useState<WorldScale>('standard');
   const [currentWorld, setCurrentWorld] = useState<World | null>(null);
   const [query, setQuery] = useState('');
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const world = await createWorld(storyInput, sourceType);
+      const world = await createWorld(storyInput, sourceType, scale);
       setCurrentWorld(world);
       setStoryInput('');
     } catch {
@@ -156,6 +164,23 @@ export function HomePage() {
                 </button>
               ))}
             </div>
+            <div className="source-type-row" style={{ marginBottom: 12 }}>
+              {SCALES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={scale === s.id ? 'tab-active' : 'tab'}
+                  onClick={() => setScale(s.id)}
+                  title={s.hint}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: 12 }}>
+              Open-world scale: <strong>{scale}</strong> —{' '}
+              {SCALES.find((s) => s.id === scale)?.hint}. Có thể mở rộng sau qua scale / env.
+            </p>
             <textarea
               rows={5}
               placeholder="Ví dụ: Một hiệp sĩ lang thang tìm kiếm thanh kiếm thần... hoặc tóm tắt phim bạn muốn biến thành thế giới mở."
@@ -190,7 +215,7 @@ export function HomePage() {
               </label>
               <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
                 {storyInput.trim().length > 0
-                  ? `${storyInput.trim().length} ký tự · ${sourceType}`
+                  ? `${storyInput.trim().length} ký tự · ${sourceType} · ${scale}`
                   : ''}
               </span>
             </div>

@@ -25,8 +25,8 @@ LỆNH THUỘC DỰ ÁN:
   xmv health                        Kiểm tra health endpoint của backend
 
 THẾ GIỚI:
-  xmv world create --story "..." [--source story|movie|book|anime|original]
-                                    Tạo thế giới mở từ cốt truyện / phim
+  xmv world create --story "..." [--source story|movie|book|anime] [--scale compact|standard|expansive|epic]
+                                    Tạo thế giới mở (scale = độ rộng bản đồ)
   xmv world list                    Liệt kê tất cả thế giới
   xmv world get --id <worldId>      Xem chi tiết (locations, factions, quests)
   xmv world export --id <worldId> [--out file.json]

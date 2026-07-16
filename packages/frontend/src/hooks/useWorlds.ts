@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
-import type { SourceType, World } from '../types';
+import type { SourceType, World, WorldScale } from '../types';
 
 export function useWorlds() {
   const [worlds, setWorlds] = useState<World[]>([]);
@@ -21,11 +21,15 @@ export function useWorlds() {
   }, [refresh]);
 
   const createWorld = useCallback(
-    async (story: string, sourceType: SourceType = 'story'): Promise<World> => {
+    async (
+      story: string,
+      sourceType: SourceType = 'story',
+      scale: WorldScale = 'standard',
+    ): Promise<World> => {
       setLoading(true);
       setError('');
       try {
-        const world = await api.createWorld(story, sourceType);
+        const world = await api.createWorld(story, sourceType, scale);
         setWorlds((prev) => [world, ...prev]);
         return world;
       } catch (err: any) {

@@ -42,6 +42,9 @@ import {
   parseQuestStatus,
   asyncHandler,
 } from '../middleware/validate';
+import { parseWorldScaleId } from '../config/world-scale';
+import { getLimits } from '../config/limits';
+import { requireFeature } from '../modules/shared/feature-guard';
 import {
   markVisited,
   appendJournal,
@@ -56,7 +59,6 @@ import {
   slimWorld,
   persistPlayer,
 } from '../services/player-state';
-import { LIMITS } from '../config/limits';
 
 const router = Router();
 
@@ -96,18 +98,20 @@ function applyQuestUpdate(
 
 router.post(
   '/worlds',
+  requireFeature('world'),
   asyncHandler(async (req, res) => {
     const story = requireString(req.body?.story, 'story', { min: 5, max: 20_000 });
     const src = parseSourceType(req.body?.sourceType);
+    const scale = parseWorldScaleId(req.body?.scale);
     info(
       'api',
-      `POST /worlds: source=${src} story="${story.slice(0, 60)}..." (${story.length} chars)`,
+      `POST /worlds: scale=${scale} source=${src} story="${story.slice(0, 60)}..." (${story.length} chars)`,
     );
-    const world = slimWorld(await generateWorldFromStory(story, src));
+    const world = slimWorld(await generateWorldFromStory(story, src, scale), scale);
     saveWorld(world);
     info(
       'api',
-      `POST /worlds → 201: world="${world.name}" id=${world.id} locations=${world.locations?.length || 0}`,
+      `POST /worlds → 201: world="${world.name}" id=${world.id} locations=${world.locations?.length || 0} scale=${world.scale}`,
     );
     res.status(201).json(world);
   }),
@@ -326,9 +330,10 @@ router.post('/players/:id/act', async (req, res, next) => {
     const world = getWorld(player.worldId);
     if (!world) throw HttpError.notFound('World not found');
 
+    const lim = getLimits(world.scale);
     const action = requireString(req.body?.action, 'action', {
       min: 1,
-      max: LIMITS.actionMax,
+      max: lim.actionMax,
     });
 
     info(
@@ -346,7 +351,7 @@ router.post('/players/:id/act', async (req, res, next) => {
     }
 
     // Lightweight AI context: few recent non-system messages, scene only if JSON
-    const history = getChatHistory(player.id, LIMITS.chatHistoryAi)
+    const history = getChatHistory(player.id, lim.chatHistoryAi)
       .filter((m) => m.role !== 'system')
       .map((m) => {
         let content = m.content;
@@ -453,17 +458,17 @@ router.post('/players/:id/act', async (req, res, next) => {
       }
     }
 
-    player.currentScene = result.scene.slice(0, LIMITS.descriptionMax);
-    pushSceneSummary(player, result.scene);
+    player.currentScene = result.scene.slice(0, lim.descriptionMax);
+    pushSceneSummary(player, result.scene, world);
     // Journal only on discovery moves — not every act (keeps payload light)
-    trimPlayer(player);
-    persistPlayer(player);
+    trimPlayer(player, world);
+    persistPlayer(player, world);
 
     // Store plain text (not full JSON blob) to keep chat DB small
-    addChatMessage(player.id, { role: 'user', content: action.slice(0, LIMITS.actionMax) });
+    addChatMessage(player.id, { role: 'user', content: action.slice(0, lim.actionMax) });
     addChatMessage(player.id, {
       role: 'assistant',
-      content: result.scene.slice(0, LIMITS.descriptionMax),
+      content: result.scene.slice(0, lim.descriptionMax),
     });
 
     if (result.events && result.events.length > 0) {
@@ -499,7 +504,9 @@ router.post('/players/:id/act', async (req, res, next) => {
 });
 
 router.get('/players/:id/history', (req, res) => {
-  const history = getChatHistory(req.params.id, LIMITS.chatHistoryClient);
+  const player = getPlayer(req.params.id);
+  const world = player ? getWorld(player.worldId) : null;
+  const history = getChatHistory(req.params.id, getLimits(world?.scale).chatHistoryClient);
   info('api', `GET /players/${req.params.id}/history → 200: ${history.length} messages`);
   res.json(history);
 });
@@ -514,7 +521,7 @@ router.delete('/players/:id/history', (req, res) => {
 // Travel / Map — open-world location graph
 // ============================================================
 
-router.get('/worlds/:id/locations', (req, res) => {
+router.get('/worlds/:id/locations', requireFeature('travel'), (req, res) => {
   const world = getWorld(req.params.id);
   if (!world) {
     res.status(404).json({ error: 'Không tìm thấy thế giới' });
@@ -523,7 +530,7 @@ router.get('/worlds/:id/locations', (req, res) => {
   res.json(world.locations || []);
 });
 
-router.post('/players/:id/travel', (req, res, next) => {
+router.post('/players/:id/travel', requireFeature('travel'), (req, res, next) => {
   try {
     const player = getPlayer(req.params.id);
     if (!player) throw HttpError.notFound('Player not found');
@@ -540,9 +547,10 @@ router.post('/players/:id/travel', (req, res, next) => {
       throw HttpError.badRequest(e.message || 'Invalid travel');
     }
     const firstVisit = markVisited(player, result.location.id);
+    const lim = getLimits(world.scale);
     player.currentLocationId = result.location.id;
-    player.currentScene = result.scene.slice(0, LIMITS.descriptionMax);
-    pushSceneSummary(player, result.scene);
+    player.currentScene = result.scene.slice(0, lim.descriptionMax);
+    pushSceneSummary(player, result.scene, world);
     // Journal only on first visit (avoid spam on re-travel)
     if (firstVisit) {
       appendJournal(
@@ -552,14 +560,14 @@ router.post('/players/:id/travel', (req, res, next) => {
         world,
       );
     }
-    persistPlayer(player);
+    persistPlayer(player, world);
     addChatMessage(player.id, {
       role: 'user',
       content: `Đi tới ${result.location.name}`,
     });
     addChatMessage(player.id, {
       role: 'assistant',
-      content: result.scene.slice(0, LIMITS.descriptionMax),
+      content: result.scene.slice(0, lim.descriptionMax),
     });
     // Light autosave: only on discovery or explicit opt-in
     if (firstVisit || req.body?.autosave === true) {
@@ -580,7 +588,7 @@ router.post('/players/:id/travel', (req, res, next) => {
   }
 });
 
-router.get('/players/:id/journal', (req, res, next) => {
+router.get('/players/:id/journal', requireFeature('journal'), (req, res, next) => {
   try {
     const player = getPlayer(req.params.id);
     if (!player) throw HttpError.notFound('Player not found');
@@ -591,7 +599,7 @@ router.get('/players/:id/journal', (req, res, next) => {
   }
 });
 
-router.post('/players/:id/journal', (req, res, next) => {
+router.post('/players/:id/journal', requireFeature('journal'), (req, res, next) => {
   try {
     const player = getPlayer(req.params.id);
     if (!player) throw HttpError.notFound('Player not found');
@@ -605,7 +613,7 @@ router.post('/players/:id/journal', (req, res, next) => {
   }
 });
 
-router.get('/players/:id/discovery', (req, res, next) => {
+router.get('/players/:id/discovery', requireFeature('discovery'), (req, res, next) => {
   try {
     const player = getPlayer(req.params.id);
     if (!player) throw HttpError.notFound('Player not found');
@@ -641,7 +649,7 @@ router.get('/players/:id/location', (req, res) => {
 // Quest log
 // ============================================================
 
-router.get('/players/:id/quests', (req, res) => {
+router.get('/players/:id/quests', requireFeature('quest'), (req, res) => {
   const player = getPlayer(req.params.id);
   if (!player) {
     res.status(404).json({ error: 'Không tìm thấy người chơi' });
@@ -661,7 +669,7 @@ router.get('/players/:id/quests', (req, res) => {
   res.json(enriched);
 });
 
-router.post('/players/:id/quests/:questId', (req, res, next) => {
+router.post('/players/:id/quests/:questId', requireFeature('quest'), (req, res, next) => {
   try {
     const player = getPlayer(req.params.id);
     if (!player) throw HttpError.notFound('Player not found');
@@ -687,7 +695,7 @@ router.post('/players/:id/quests/:questId', (req, res, next) => {
 // Inventory — inspired by ai_rpg + openRPG
 // ============================================================
 
-router.post('/players/:id/inventory', (req, res) => {
+router.post('/players/:id/inventory', requireFeature('rpg'), (req, res) => {
   const player = getPlayer(req.params.id);
   if (!player) {
     warn('api', `POST /players/${req.params.id}/inventory → 404`);
@@ -816,7 +824,7 @@ router.post('/players/:id/relationships/:npcName', (req, res) => {
 // Dice — standalone roll endpoint
 // ============================================================
 
-router.post('/roll', (req, res) => {
+router.post('/roll', requireFeature('rpg'), (req, res) => {
   const { notation, stat, playerId } = req.body;
   if (!notation) {
     res.status(400).json({ error: 'notation là bắt buộc (vd: 1d20, 3d6)' });
@@ -848,7 +856,7 @@ router.post('/players/:id/check', (req, res) => {
 // Save / Load snapshots — inspired by ai_rpg
 // ============================================================
 
-router.post('/players/:id/saves', (req, res) => {
+router.post('/players/:id/saves', requireFeature('save'), (req, res) => {
   const player = getPlayer(req.params.id);
   if (!player) {
     res.status(404).json({ error: 'Không tìm thấy người chơi' });
@@ -868,7 +876,7 @@ router.post('/players/:id/saves', (req, res) => {
     createdAt: Date.now(),
     worldData: slimWorld(world),
     playerData: player,
-    chatHistory: getChatHistory(player.id, LIMITS.manualSaveChat),
+    chatHistory: getChatHistory(player.id, getLimits(world.scale).manualSaveChat),
   };
   saveSnapshot(snapshot);
   info(

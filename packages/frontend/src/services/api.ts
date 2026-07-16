@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   Location,
   SourceType,
+  WorldScale,
   QuestProgress,
   WorldPack,
   JournalEntry,
@@ -33,11 +34,23 @@ export const api = {
   // Worlds
   listWorlds: () => request<World[]>('/worlds'),
   getWorld: (id: string) => request<World>(`/worlds/${id}`),
-  createWorld: (story: string, sourceType: SourceType = 'story') =>
+  createWorld: (story: string, sourceType: SourceType = 'story', scale: WorldScale = 'standard') =>
     request<World>('/worlds', {
       method: 'POST',
-      body: JSON.stringify({ story, sourceType }),
+      body: JSON.stringify({ story, sourceType, scale }),
     }),
+  getConfig: () =>
+    request<{
+      defaultScale: string;
+      scales: Array<{
+        id: string;
+        label: string;
+        description: string;
+        locationsTarget: number;
+        locationsMax: number;
+      }>;
+      features: Array<{ id: string; name: string; enabled: boolean }>;
+    }>('/config'),
   deleteWorld: (id: string) => request<{ ok: boolean }>(`/worlds/${id}`, { method: 'DELETE' }),
   listLocations: (worldId: string) => request<Location[]>(`/worlds/${worldId}/locations`),
   exportWorld: (id: string) => request<WorldPack>(`/worlds/${id}/export`),

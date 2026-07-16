@@ -1,5 +1,5 @@
 /**
- * Shared player state helpers — tuned for lightweight open-world play.
+ * Player state helpers — scale-aware caps for real open worlds.
  */
 import { v4 as uuidv4 } from 'uuid';
 import type { JournalEntry, Player, World, WorldPack, Location } from '../types';
@@ -12,10 +12,14 @@ import {
   deleteSnapshot,
 } from './repository';
 import { findLocation } from './worldgen';
-import { LIMITS } from '../config/limits';
+import { getLimits, type RuntimeLimits } from '../config/limits';
 
-/** In-memory throttle for autosave (per player process). */
 const lastAutosaveAt = new Map<string, number>();
+
+function L(world?: World | string | null): RuntimeLimits {
+  if (typeof world === 'string' || world == null) return getLimits(world);
+  return getLimits(world.scale);
+}
 
 export function ensurePlayerArrays(player: Player): void {
   if (!player.visitedLocations) player.visitedLocations = [];
@@ -26,25 +30,25 @@ export function ensurePlayerArrays(player: Player): void {
   if (!player.inventory) player.inventory = [];
 }
 
-/** Trim player-side arrays to hard caps (call after mutations). */
-export function trimPlayer(player: Player): void {
+export function trimPlayer(player: Player, world?: World): void {
   ensurePlayerArrays(player);
-  if (player.journal.length > LIMITS.journalMax) {
-    player.journal = player.journal.slice(-LIMITS.journalMax);
+  const lim = L(world);
+  if (player.journal.length > lim.journalMax) {
+    player.journal = player.journal.slice(-lim.journalMax);
   }
-  if (player.sceneSummaries.length > LIMITS.sceneSummariesMax) {
-    player.sceneSummaries = player.sceneSummaries.slice(-LIMITS.sceneSummariesMax);
+  if (player.sceneSummaries.length > lim.sceneSummariesMax) {
+    player.sceneSummaries = player.sceneSummaries.slice(-lim.sceneSummariesMax);
   }
-  if (player.inventory.length > LIMITS.inventoryMax) {
-    player.inventory = player.inventory.slice(-LIMITS.inventoryMax);
+  if (player.inventory.length > lim.inventoryMax) {
+    player.inventory = player.inventory.slice(-lim.inventoryMax);
   }
-  if (player.questLog.length > LIMITS.questLogMax) {
-    player.questLog = player.questLog.slice(0, LIMITS.questLogMax);
+  if (player.questLog.length > lim.questLogMax) {
+    player.questLog = player.questLog.slice(0, lim.questLogMax);
   }
   for (const key of Object.keys(player.relationships)) {
     const rel = player.relationships[key];
-    if (rel.notes && rel.notes.length > LIMITS.relationshipNotesMax) {
-      rel.notes = rel.notes.slice(-LIMITS.relationshipNotesMax);
+    if (rel.notes && rel.notes.length > lim.relationshipNotesMax) {
+      rel.notes = rel.notes.slice(-lim.relationshipNotesMax);
     }
   }
 }
@@ -64,6 +68,7 @@ export function appendJournal(
   world?: World,
 ): JournalEntry {
   ensurePlayerArrays(player);
+  const lim = L(world);
   const loc =
     player.currentLocationId && world ? findLocation(world, player.currentLocationId) : undefined;
   const entry: JournalEntry = {
@@ -71,32 +76,29 @@ export function appendJournal(
     at: Date.now(),
     locationId: loc?.id || player.currentLocationId,
     locationName: loc?.name,
-    text: text.slice(0, LIMITS.journalTextMax),
+    text: text.slice(0, lim.journalTextMax),
     source,
   };
   player.journal.push(entry);
-  if (player.journal.length > LIMITS.journalMax) {
-    player.journal = player.journal.slice(-LIMITS.journalMax);
+  if (player.journal.length > lim.journalMax) {
+    player.journal = player.journal.slice(-lim.journalMax);
   }
   return entry;
 }
 
-export function pushSceneSummary(player: Player, scene: string): void {
+export function pushSceneSummary(player: Player, scene: string, world?: World): void {
   ensurePlayerArrays(player);
-  player.sceneSummaries.push(scene.slice(0, LIMITS.sceneSummaryLen));
-  if (player.sceneSummaries.length > LIMITS.sceneSummariesMax) {
-    player.sceneSummaries = player.sceneSummaries.slice(-LIMITS.sceneSummariesMax);
+  const lim = L(world);
+  player.sceneSummaries.push(scene.slice(0, lim.sceneSummaryLen));
+  if (player.sceneSummaries.length > lim.sceneSummariesMax) {
+    player.sceneSummaries = player.sceneSummaries.slice(-lim.sceneSummariesMax);
   }
 }
 
 export function discoveryProgress(
   player: Player,
   world: World,
-): {
-  visited: number;
-  total: number;
-  percent: number;
-} {
+): { visited: number; total: number; percent: number } {
   ensurePlayerArrays(player);
   const total = world.locations?.length || 0;
   const visited = player.visitedLocations.filter((id) =>
@@ -109,24 +111,16 @@ export function discoveryProgress(
   };
 }
 
-/**
- * Lightweight rolling autosave.
- * - Opt-in only (caller checks)
- * - Throttled by interval
- * - Short chat window (not full history)
- */
 export function writeAutosave(player: Player, world: World, force = false): boolean {
+  const lim = L(world);
   const now = Date.now();
   const prev = lastAutosaveAt.get(player.id) || 0;
-  if (!force && now - prev < LIMITS.autosaveMinIntervalMs) {
-    return false;
-  }
+  if (!force && now - prev < lim.autosaveMinIntervalMs) return false;
   lastAutosaveAt.set(player.id, now);
 
-  const existing = listSnapshotsByPlayer(player.id).filter((s) => s.name === 'Autosave');
-  for (const s of existing) deleteSnapshot(s.id);
-
-  // Shallow-copy without bloating: store world as-is (already capped), short chat
+  for (const s of listSnapshotsByPlayer(player.id).filter((x) => x.name === 'Autosave')) {
+    deleteSnapshot(s.id);
+  }
   saveSnapshot({
     id: uuidv4(),
     name: 'Autosave',
@@ -135,7 +129,7 @@ export function writeAutosave(player: Player, world: World, force = false): bool
     createdAt: now,
     worldData: world,
     playerData: player,
-    chatHistory: getChatHistory(player.id, LIMITS.autosaveChat),
+    chatHistory: getChatHistory(player.id, lim.autosaveChat),
   });
   return true;
 }
@@ -149,32 +143,34 @@ export function exportWorldPack(world: World): WorldPack {
   };
 }
 
-/** Cap world collections so open-world data stays small. */
-export function slimWorld(world: World): World {
-  const locations = (world.locations || []).slice(0, LIMITS.locationsMax);
+export function slimWorld(world: World, scaleHint?: string): World {
+  const lim = getLimits(scaleHint || world.scale);
+  const connCap = lim.scaleId === 'epic' ? 6 : lim.scaleId === 'expansive' ? 5 : 4;
+  const locations = (world.locations || []).slice(0, lim.locationsMax);
   return {
     ...world,
-    storyInput: (world.storyInput || '').slice(0, LIMITS.storyInputMax),
-    description: (world.description || '').slice(0, LIMITS.descriptionMax),
-    geography: (world.geography || locations.map((l) => l.name)).slice(0, LIMITS.locationsMax),
+    scale: world.scale || lim.scaleId,
+    storyInput: (world.storyInput || '').slice(0, lim.storyInputMax),
+    description: (world.description || '').slice(0, lim.descriptionMax),
+    geography: (world.geography || locations.map((l) => l.name)).slice(0, lim.locationsMax),
     locations: locations.map((l) => ({
       ...l,
       description: (l.description || '').slice(0, 280),
-      connections: (l.connections || []).slice(0, 4),
-      npcs: (l.npcs || []).slice(0, 3),
+      connections: (l.connections || []).slice(0, connCap),
+      npcs: (l.npcs || []).slice(0, lim.scaleId === 'compact' ? 2 : 3),
       tags: l.tags?.slice(0, 4),
     })),
-    factions: (world.factions || []).slice(0, LIMITS.factionsMax).map((f) => ({
+    factions: (world.factions || []).slice(0, lim.factionsMax).map((f) => ({
       ...f,
       description: (f.description || '').slice(0, 200),
       goals: (f.goals || []).slice(0, 3),
     })),
-    timeline: (world.timeline || []).slice(0, LIMITS.timelineMax),
-    characters: (world.characters || []).slice(0, LIMITS.charactersMax).map((c) => ({
+    timeline: (world.timeline || []).slice(0, lim.timelineMax),
+    characters: (world.characters || []).slice(0, lim.charactersMax).map((c) => ({
       ...c,
       description: (c.description || '').slice(0, 160),
     })),
-    quests: (world.quests || []).slice(0, LIMITS.questsMax).map((q) => ({
+    quests: (world.quests || []).slice(0, lim.questsMax).map((q) => ({
       ...q,
       description: (q.description || '').slice(0, 200),
       objective: (q.objective || '').slice(0, 120),
@@ -183,22 +179,19 @@ export function slimWorld(world: World): World {
 }
 
 export function capTimeline(world: World): void {
-  if (world.timeline && world.timeline.length > LIMITS.timelineMax) {
-    // Keep earliest lore + latest player events
+  const lim = L(world);
+  if (world.timeline && world.timeline.length > lim.timelineMax) {
     const sorted = [...world.timeline].sort((a, b) => a.year - b.year);
-    const keepHead = Math.floor(LIMITS.timelineMax / 2);
-    const keepTail = LIMITS.timelineMax - keepHead;
+    const keepHead = Math.floor(lim.timelineMax / 2);
+    const keepTail = lim.timelineMax - keepHead;
     world.timeline = [...sorted.slice(0, keepHead), ...sorted.slice(-keepTail)];
     world.timeline.sort((a, b) => a.year - b.year);
   }
 }
 
-/** Clone a world pack with fresh IDs so imports never collide. */
 export function importWorldPack(pack: WorldPack | { world: World }): World {
   const src = 'world' in pack ? pack.world : (pack as unknown as World);
-  if (!src || !src.name) {
-    throw new Error('Invalid world pack: missing world data');
-  }
+  if (!src || !src.name) throw new Error('Invalid world pack: missing world data');
 
   const idMap = new Map<string, string>();
   const mapId = (old?: string) => {
@@ -207,11 +200,12 @@ export function importWorldPack(pack: WorldPack | { world: World }): World {
     return idMap.get(old)!;
   };
 
-  const locations: Location[] = (src.locations || []).slice(0, LIMITS.locationsMax).map((l) => ({
+  const lim = getLimits(src.scale);
+  const locations: Location[] = (src.locations || []).slice(0, lim.locationsMax).map((l) => ({
     ...l,
     id: mapId(l.id),
     description: (l.description || '').slice(0, 280),
-    connections: [...(l.connections || [])].slice(0, 4),
+    connections: [...(l.connections || [])].slice(0, 6),
     npcs: [...(l.npcs || [])].slice(0, 3),
     tags: l.tags ? [...l.tags].slice(0, 4) : undefined,
   }));
@@ -223,25 +217,14 @@ export function importWorldPack(pack: WorldPack | { world: World }): World {
     description: src.description || '',
     geography: [...(src.geography || locations.map((l) => l.name))],
     locations,
-    factions: (src.factions || []).map((f) => ({
-      ...f,
-      goals: [...(f.goals || [])],
-    })),
+    factions: (src.factions || []).map((f) => ({ ...f, goals: [...(f.goals || [])] })),
     magicSystem: src.magicSystem,
     technologyLevel: src.technologyLevel,
-    timeline: (src.timeline || []).map((e) => ({
-      ...e,
-      id: mapId(e.id),
-    })),
-    characters: (src.characters || []).map((c) => ({
-      ...c,
-      id: mapId(c.id),
-    })),
-    quests: (src.quests || []).map((q) => ({
-      ...q,
-      id: mapId(q.id),
-    })),
+    timeline: (src.timeline || []).map((e) => ({ ...e, id: mapId(e.id) })),
+    characters: (src.characters || []).map((c) => ({ ...c, id: mapId(c.id) })),
+    quests: (src.quests || []).map((q) => ({ ...q, id: mapId(q.id) })),
     sourceType: src.sourceType || 'story',
+    scale: src.scale || lim.scaleId,
     createdAt: Date.now(),
   });
 
@@ -249,7 +232,7 @@ export function importWorldPack(pack: WorldPack | { world: World }): World {
   return world;
 }
 
-export function persistPlayer(player: Player): void {
-  trimPlayer(player);
+export function persistPlayer(player: Player, world?: World): void {
+  trimPlayer(player, world);
   savePlayer(player);
 }

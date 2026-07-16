@@ -213,7 +213,10 @@ Log file tự động xóa khi vượt quá 100MB.
 | Method | Endpoint | Mô tả |
 | ------ | -------- | ----- |
 | GET | `/health` | Health check |
-| POST | `/api/worlds` | Tạo thế giới (`story`, optional `sourceType`) |
+| GET | `/api/config` | Scales + feature flags + default limits |
+| GET | `/api/config/scales` | Danh sách open-world scale |
+| GET | `/api/config/features` | Module feature toggles |
+| POST | `/api/worlds` | Tạo thế giới (`story`, `sourceType`, `scale`) |
 | GET | `/api/worlds` | Danh sách thế giới |
 | GET | `/api/worlds/:id` | Chi tiết thế giới |
 | DELETE | `/api/worlds/:id` | Xóa thế giới |

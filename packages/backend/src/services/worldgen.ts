@@ -12,7 +12,9 @@ import type {
   SourceType,
   RelationshipChange,
   QuestProgress,
+  WorldScale,
 } from '../types';
+import { resolveScale, type WorldScaleId } from '../config/world-scale';
 
 const WORLD_SYSTEM_PROMPT = `Bạn là kiến trúc sư thế giới mở (open-world builder). Phân tích cốt truyện / phim / sách người dùng cung cấp và tạo một thế giới khám phá được.
 
@@ -950,15 +952,78 @@ function buildDemoTemplate(
   };
 }
 
-function buildDemoWorld(storyInput: string, sourceType: SourceType = 'story'): World {
+/**
+ * Grow a location graph toward targetCount while keeping connections valid.
+ * Enables real open-world expansion beyond the base template.
+ */
+export function expandLocationGraph(locations: Location[], targetCount: number): Location[] {
+  if (targetCount <= locations.length) return locations.slice(0, targetCount);
+  const out: Location[] = locations.map((l) => ({
+    ...l,
+    connections: [...(l.connections || [])],
+    npcs: [...(l.npcs || [])],
+    tags: l.tags ? [...l.tags] : undefined,
+  }));
+  let i = 0;
+  const suffixes = [
+    'Ngoại ô',
+    'Hầm phụ',
+    'Đường mòn',
+    'Phá cổ',
+    'Đồn gác',
+    'Hang nhánh',
+    'Bến phụ',
+    'Tháp canh',
+  ];
+  while (out.length < targetCount) {
+    const base = out[i % out.length];
+    const suffix = suffixes[out.length % suffixes.length];
+    const name = `${base.name} · ${suffix} ${Math.floor(out.length / locations.length) + 1}`;
+    if (out.some((l) => l.name === name)) {
+      i++;
+      continue;
+    }
+    const node: Location = {
+      id: uuidv4(),
+      name,
+      description: `Vùng mở rộng gắn với ${base.name}. ${base.description.slice(0, 120)}`,
+      atmosphere: base.atmosphere || 'Bí ẩn',
+      connections: [base.name],
+      npcs: (base.npcs || []).slice(0, 1),
+      tags: [...new Set([...(base.tags || []), 'expansion', 'open'])],
+    };
+    if (!base.connections.includes(name)) base.connections.push(name);
+    if (out.length > 2 && out.length % 3 === 0) {
+      const other = out[(i + 2) % out.length];
+      if (other.name !== base.name && !node.connections.includes(other.name)) {
+        node.connections.push(other.name);
+        if (!other.connections.includes(name)) other.connections.push(name);
+      }
+    }
+    out.push(node);
+    i++;
+  }
+  return out;
+}
+
+function buildDemoWorld(
+  storyInput: string,
+  sourceType: SourceType = 'story',
+  scaleId: WorldScaleId = 'standard',
+): World {
+  const scale = resolveScale(scaleId);
   const genre = detectDemoGenre(storyInput, sourceType);
   const tpl = buildDemoTemplate(genre);
+  const locations = expandLocationGraph(tpl.locations, scale.locationsTarget);
   return {
     id: uuidv4(),
     storyInput,
     ...tpl,
-    description: `${tpl.description} Seed: "${storyInput.slice(0, 100)}${storyInput.length > 100 ? '…' : ''}"`,
+    locations,
+    geography: locations.map((l) => l.name),
+    description: `${tpl.description} Scale: ${scale.label}. Seed: "${storyInput.slice(0, 80)}${storyInput.length > 80 ? '…' : ''}"`,
     sourceType,
+    scale: scale.id as WorldScale,
     createdAt: Date.now(),
   };
 }
@@ -971,21 +1036,23 @@ export function _detectDemoGenreForTest(
   return detectDemoGenre(story, sourceType);
 }
 
-function normalizeLocations(raw: any[] | undefined, geography: string[]): Location[] {
-  const MAX = 8;
+function normalizeLocations(
+  raw: any[] | undefined,
+  geography: string[],
+  maxLoc: number,
+): Location[] {
   if (Array.isArray(raw) && raw.length > 0) {
-    return raw.slice(0, MAX).map((loc: any) => ({
+    return raw.slice(0, maxLoc).map((loc: any) => ({
       id: uuidv4(),
       name: String(loc.name || 'Địa điểm lạ').slice(0, 80),
       description: String(loc.description || '').slice(0, 280),
       atmosphere: loc.atmosphere ? String(loc.atmosphere).slice(0, 60) : undefined,
-      connections: Array.isArray(loc.connections) ? loc.connections.map(String).slice(0, 4) : [],
+      connections: Array.isArray(loc.connections) ? loc.connections.map(String).slice(0, 6) : [],
       npcs: Array.isArray(loc.npcs) ? loc.npcs.map(String).slice(0, 3) : [],
       tags: Array.isArray(loc.tags) ? loc.tags.map(String).slice(0, 4) : undefined,
     }));
   }
-  // Fallback: turn geography strings into basic locations
-  return geography.slice(0, MAX).map((name, i, arr) => ({
+  return geography.slice(0, maxLoc).map((name, i, arr) => ({
     id: uuidv4(),
     name: name.slice(0, 80),
     description: `Khu vực ${name} — có thể khám phá.`,
@@ -998,31 +1065,38 @@ function normalizeLocations(raw: any[] | undefined, geography: string[]): Locati
 export async function generateWorldFromStory(
   storyInput: string,
   sourceType: SourceType = 'story',
+  scaleId: WorldScaleId | string = 'standard',
 ): Promise<World> {
+  const scale = resolveScale(scaleId);
+
   if (config.ai.demoMode || !config.ai.apiKey) {
-    return buildDemoWorld(storyInput, sourceType);
+    return buildDemoWorld(storyInput, sourceType, scale.id);
   }
 
   const content = await callAi([
     { role: 'system', content: WORLD_SYSTEM_PROMPT },
     {
       role: 'user',
-      content: `Loại nguồn: ${sourceType}\nCốt truyện / phim / sách:\n${storyInput}`,
+      content: `Scale: ${scale.id} — ${scale.genHint}\nLoại nguồn: ${sourceType}\nCốt truyện / phim / sách:\n${storyInput}`,
     },
   ]);
 
   const parsed = JSON.parse(stripCodeFences(content));
   const geography: string[] = parsed.geography || [];
-  const locations = normalizeLocations(parsed.locations, geography);
+  let locations = normalizeLocations(parsed.locations, geography, scale.locationsMax);
+  if (locations.length < scale.locationsTarget) {
+    locations = expandLocationGraph(locations, scale.locationsTarget);
+  }
 
   return {
     id: uuidv4(),
     storyInput,
     name: parsed.name,
     description: parsed.description,
-    geography: geography.length > 0 ? geography : locations.map((l) => l.name),
+    geography: locations.map((l) => l.name),
     locations,
     sourceType: (parsed.sourceType as SourceType) || sourceType,
+    scale: scale.id as WorldScale,
     factions: parsed.factions || [],
     magicSystem: parsed.magicSystem,
     technologyLevel: parsed.technologyLevel,

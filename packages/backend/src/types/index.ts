@@ -19,6 +19,9 @@ export interface Location {
 
 export type SourceType = 'story' | 'movie' | 'book' | 'anime' | 'original';
 
+/** Open-world size preset — see config/world-scale.ts */
+export type WorldScale = 'compact' | 'standard' | 'expansive' | 'epic' | 'custom';
+
 /** Player progress on a world quest. */
 export interface QuestProgress {
   questId: string;
@@ -42,6 +45,8 @@ export interface World {
   quests: Quest[];
   /** Origin of the world seed (story, film, book...). */
   sourceType?: SourceType;
+  /** Open-world scale used when generating / capping this world. */
+  scale?: WorldScale;
   createdAt: number;
 }
 

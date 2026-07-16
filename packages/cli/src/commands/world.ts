@@ -11,6 +11,7 @@ export async function cmdWorldCreate(flags: Record<string, string | boolean>): P
       : typeof flags['type'] === 'string'
         ? flags['type']
         : 'story';
+  const scale = typeof flags['scale'] === 'string' ? flags['scale'] : 'standard';
   beginSteps(3);
 
   const s0 = step('Validate input');
@@ -22,12 +23,12 @@ export async function cmdWorldCreate(flags: Record<string, string | boolean>): P
   }
   stepDone(s0);
   info(
-    `Source: ${sourceType} | Story: "${story.slice(0, 60)}${story.length > 60 ? '...' : ''}" (${story.length} ký tự)`,
+    `Scale: ${scale} | Source: ${sourceType} | Story: "${story.slice(0, 60)}${story.length > 60 ? '...' : ''}" (${story.length} ký tự)`,
   );
 
   const s1 = step('Gọi AI tạo thế giới mở');
   try {
-    const world = await api.createWorld(story, sourceType);
+    const world = await api.createWorld(story, sourceType, scale);
     stepDone(s1);
     info(`AI đã trả về thế giới: "${world.name}"`);
 

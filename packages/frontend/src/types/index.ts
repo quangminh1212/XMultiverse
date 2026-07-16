@@ -49,6 +49,8 @@ export interface Location {
 
 export type SourceType = 'story' | 'movie' | 'book' | 'anime' | 'original';
 
+export type WorldScale = 'compact' | 'standard' | 'expansive' | 'epic' | 'custom';
+
 export interface QuestProgress {
   questId: string;
   status: 'active' | 'completed' | 'failed';
@@ -106,6 +108,7 @@ export interface World {
   characters: Character[];
   quests: Quest[];
   sourceType?: SourceType;
+  scale?: WorldScale;
   createdAt?: number | string;
 }
 

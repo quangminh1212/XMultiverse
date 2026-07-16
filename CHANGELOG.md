@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Modular platform**: `modules/` registry + per-domain services (world, travel, roleplay, quest, journal, rpg, save) and feature flags (`XMV_FEATURES*`).
+- **Open-world scale presets**: `compact` | `standard` | `expansive` | `epic` | `custom` (API `scale`, CLI `--scale`, UI selector, env `XMV_WORLD_SCALE`).
+- **Real expandable graph**: `expandLocationGraph` grows connected locations to scale target.
+- **Config API**: `GET /api/config`, `/config/scales`, `/config/features`, `/config/modules`.
 - **Discovery map**: track visited locations + % explored.
 - **Journal**: auto entries on discovery + manual notes (not every act).
 - **World export/import** (JSON pack `xmultiverse-world-v1`) — API, UI, CLI.

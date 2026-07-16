@@ -1,9 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import apiRouter from './routes/api';
+import { createApiRouter } from './modules';
 import { notFoundHandler, errorHandler } from './middleware/error-handlers';
 import { rateLimit } from './middleware/rate-limit';
 import { config } from './config';
+import { defaultScaleId } from './config/world-scale';
 
 const app = express();
 
@@ -43,10 +44,12 @@ app.get('/health', (_req, res) => {
     demoMode: config.ai.demoMode,
     version: process.env.npm_package_version || '1.1.0',
     uptime: Math.floor(process.uptime()),
+    defaultScale: defaultScaleId(),
+    modular: true,
   });
 });
 
-app.use('/api', apiRouter);
+app.use('/api', createApiRouter());
 
 app.use(notFoundHandler);
 app.use(errorHandler);
