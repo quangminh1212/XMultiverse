@@ -30,32 +30,34 @@ export function getStatModifier(stat: number): number {
 export function inferStatFromAction(action: string): keyof PlayerStats | null {
   const lower = action.toLowerCase();
   if (
-    /fight|attack|hit|slash|punch|kick|lift|break|force|chiến|đánh|đấm|đạp|phá|mạnh/i.test(lower)
+    /fight|attack|hit|slash|punch|kick|lift|break|force|chiến|chien|đánh|danh|đấm|dam|đạp|dap|phá|pha|mạnh|manh/i.test(
+      lower,
+    )
   ) {
     return 'strength';
   }
   if (
-    /sneak|hide|dodge|run|jump|climb|steal|quick|fast|nhanh|lén|trốn|chạy|nhảy|leo|ăn cắp/i.test(
+    /sneak|hide|dodge|run|jump|climb|steal|quick|fast|nhanh|lén|len|trốn|tron|chạy|chay|nhảy|nhay|leo|ăn cắp|an cap/i.test(
       lower,
     )
   ) {
     return 'agility';
   }
   if (
-    /think|solve|research|magic|spell|analyze|remember|study|cast|tính|nghiên|phép|phân|nhớ|học|thuật/i.test(
+    /think|solve|research|magic|spell|analyze|remember|study|cast|tính|tinh|nghiên|nghien|phép|phep|phân|phan|nhớ|nho|học|hoc|thuật|thuat/i.test(
       lower,
     )
   ) {
     return 'intelligence';
   }
   if (
-    /persuade|charm|talk|negotiate|bribe|threaten|convince|sing|perform|thuyết|thuyết phục|nói|thương|đe|hát|biểu/i.test(
+    /persuade|charm|talk|negotiate|bribe|threaten|convince|sing|perform|thuyết|thuyet|nói|noi|thương|thuong|đe|de doa|hát|hat|biểu|bieu|chuyện|chuyen/i.test(
       lower,
     )
   ) {
     return 'charisma';
   }
-  if (/gamble|luck|random|guess|try|chance|cược|may|ngẫu|đoán|thử|may mắn/i.test(lower)) {
+  if (/gamble|luck|random|guess|try|chance|cược|cuoc|may|ngẫu|ngau|đoán|doan|thử|thu|may mắn/i.test(lower)) {
     return 'luck';
   }
   return null;

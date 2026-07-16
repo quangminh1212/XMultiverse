@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { generateWorldFromStory, generateRoleplayResponse } from '../services/worldgen';
+import {
+  generateWorldFromStory,
+  generateRoleplayResponse,
+  getStartingLocation,
+  travelToLocation,
+  findLocation,
+} from '../services/worldgen';
 import {
   saveWorld,
   getWorld,
@@ -28,9 +34,46 @@ import {
   addXp,
   rollDice,
 } from '../services/dice';
-import type { Player, TimelineEvent, InventoryItem, SaveSnapshot } from '../types';
+import type {
+  Player,
+  TimelineEvent,
+  InventoryItem,
+  SaveSnapshot,
+  SourceType,
+  QuestProgress,
+} from '../types';
 
 const router = Router();
+
+function clampDisp(n: number): number {
+  return Math.max(-100, Math.min(100, n));
+}
+
+function applyQuestUpdate(
+  player: Player,
+  world: { quests: { id: string; title: string }[] },
+  qu: QuestProgress,
+): void {
+  if (!player.questLog) player.questLog = [];
+  // Match by quest id or title
+  let questId = qu.questId;
+  const byTitle = world.quests.find(
+    (q) => q.title.toLowerCase() === String(qu.questId).toLowerCase(),
+  );
+  if (byTitle) questId = byTitle.id;
+
+  const existing = player.questLog.find((q) => q.questId === questId);
+  if (existing) {
+    existing.status = qu.status;
+    if (qu.progress) existing.progress = qu.progress;
+  } else {
+    player.questLog.push({
+      questId,
+      status: qu.status,
+      progress: qu.progress,
+    });
+  }
+}
 
 // ============================================================
 // Worlds
@@ -38,16 +81,29 @@ const router = Router();
 
 router.post('/worlds', async (req, res, next) => {
   try {
-    const { story } = req.body;
+    const { story, sourceType } = req.body;
     if (!story || typeof story !== 'string') {
       warn('api', 'POST /worlds → 400: missing story');
       res.status(400).json({ error: 'story là bắt buộc' });
       return;
     }
-    info('api', `POST /worlds: story="${story.slice(0, 60)}..." (${story.length} chars)`);
-    const world = await generateWorldFromStory(story);
+    const src: SourceType =
+      sourceType === 'movie' ||
+      sourceType === 'book' ||
+      sourceType === 'anime' ||
+      sourceType === 'original'
+        ? sourceType
+        : 'story';
+    info(
+      'api',
+      `POST /worlds: source=${src} story="${story.slice(0, 60)}..." (${story.length} chars)`,
+    );
+    const world = await generateWorldFromStory(story, src);
     saveWorld(world);
-    info('api', `POST /worlds → 200: world="${world.name}" id=${world.id}`);
+    info(
+      'api',
+      `POST /worlds → 200: world="${world.name}" id=${world.id} locations=${world.locations?.length || 0}`,
+    );
     res.json(world);
   } catch (err) {
     next(err);
@@ -127,6 +183,7 @@ router.post('/worlds/:id/players', (req, res) => {
     res.status(400).json({ error: 'name và role là bắt buộc' });
     return;
   }
+  const startLoc = getStartingLocation(world);
   const player: Player = {
     id: crypto.randomUUID(),
     worldId: world.id,
@@ -136,7 +193,17 @@ router.post('/worlds/:id/players', (req, res) => {
     faction: faction || undefined,
     inventory: [],
     stats: createDefaultStats(role),
-    currentScene: world.description,
+    currentScene: startLoc
+      ? `${startLoc.description} Bạn đang ở ${startLoc.name}.`
+      : world.description,
+    currentLocationId: startLoc?.id,
+    questLog: (world.quests || []).slice(0, 2).map(
+      (q): QuestProgress => ({
+        questId: q.id,
+        status: 'active',
+        progress: 'Mới nhận',
+      }),
+    ),
     relationships: {},
     sceneSummaries: [],
     createdAt: Date.now(),
@@ -144,11 +211,13 @@ router.post('/worlds/:id/players', (req, res) => {
   savePlayer(player);
   addChatMessage(player.id, {
     role: 'system',
-    content: `Chào mừng ${name} đến với thế giới ${world.name}. Bạn là ${role}.`,
+    content: `Chào mừng ${name} đến với thế giới ${world.name}. Bạn là ${role}.${
+      startLoc ? ` Bắt đầu tại: ${startLoc.name}.` : ''
+    }`,
   });
   info(
     'api',
-    `POST /worlds/${req.params.id}/players → 200: player="${name}" role=${role} id=${player.id}`,
+    `POST /worlds/${req.params.id}/players → 200: player="${name}" role=${role} id=${player.id} loc=${startLoc?.name || 'n/a'}`,
   );
   res.json(player);
 });
@@ -275,6 +344,42 @@ router.post('/players/:id/act', async (req, res, next) => {
       }
     }
 
+    // Apply relationship changes
+    if (result.relationshipChanges) {
+      if (!player.relationships) player.relationships = {};
+      for (const rc of result.relationshipChanges) {
+        if (!player.relationships[rc.npc]) {
+          player.relationships[rc.npc] = {
+            trust: 0,
+            respect: 0,
+            friendship: 0,
+            fear: 0,
+            notes: [],
+          };
+        }
+        const rel = player.relationships[rc.npc];
+        if (rc.trust) rel.trust = clampDisp(rel.trust + rc.trust);
+        if (rc.respect) rel.respect = clampDisp(rel.respect + rc.respect);
+        if (rc.friendship) rel.friendship = clampDisp(rel.friendship + rc.friendship);
+        if (rc.fear) rel.fear = clampDisp(rel.fear + rc.fear);
+        if (rc.note) rel.notes.push(rc.note);
+      }
+    }
+
+    // Apply quest updates
+    if (result.questUpdates) {
+      if (!player.questLog) player.questLog = [];
+      for (const qu of result.questUpdates) {
+        applyQuestUpdate(player, world, qu);
+      }
+    }
+
+    // Location move from roleplay
+    if (result.movedToLocationId) {
+      const dest = findLocation(world, result.movedToLocationId);
+      if (dest) player.currentLocationId = dest.id;
+    }
+
     player.currentScene = result.scene;
 
     // Add scene summary (keep last 10)
@@ -330,6 +435,135 @@ router.delete('/players/:id/history', (req, res) => {
   clearChatHistory(req.params.id);
   info('api', `DELETE /players/${req.params.id}/history → 200: cleared`);
   res.json({ ok: true });
+});
+
+// ============================================================
+// Travel / Map — open-world location graph
+// ============================================================
+
+router.get('/worlds/:id/locations', (req, res) => {
+  const world = getWorld(req.params.id);
+  if (!world) {
+    res.status(404).json({ error: 'Không tìm thấy thế giới' });
+    return;
+  }
+  res.json(world.locations || []);
+});
+
+router.post('/players/:id/travel', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    warn('api', `POST /players/${req.params.id}/travel → 404 player`);
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const world = getWorld(player.worldId);
+  if (!world) {
+    res.status(404).json({ error: 'Không tìm thấy thế giới' });
+    return;
+  }
+  const { locationId, location } = req.body;
+  const target = locationId || location;
+  if (!target) {
+    res.status(400).json({ error: 'locationId hoặc location là bắt buộc' });
+    return;
+  }
+  try {
+    const result = travelToLocation(world, player, target);
+    player.currentLocationId = result.location.id;
+    player.currentScene = result.scene;
+    player.sceneSummaries.push(result.scene.slice(0, 200));
+    if (player.sceneSummaries.length > 10) {
+      player.sceneSummaries = player.sceneSummaries.slice(-10);
+    }
+    savePlayer(player);
+    addChatMessage(player.id, {
+      role: 'user',
+      content: `Di chuyển tới ${result.location.name}`,
+    });
+    addChatMessage(player.id, { role: 'assistant', content: result.scene });
+    info(
+      'api',
+      `POST /players/${req.params.id}/travel → 200: ${result.location.name}`,
+    );
+    res.json({
+      scene: result.scene,
+      location: result.location,
+      choices: result.choices,
+      events: [],
+      player,
+    });
+  } catch (err: any) {
+    warn('api', `POST /players/${req.params.id}/travel → 400: ${err.message}`);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/players/:id/location', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const world = getWorld(player.worldId);
+  if (!world) {
+    res.status(404).json({ error: 'Không tìm thấy thế giới' });
+    return;
+  }
+  const loc = player.currentLocationId
+    ? findLocation(world, player.currentLocationId)
+    : getStartingLocation(world);
+  res.json({ location: loc || null, currentLocationId: player.currentLocationId });
+});
+
+// ============================================================
+// Quest log
+// ============================================================
+
+router.get('/players/:id/quests', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const world = getWorld(player.worldId);
+  const log = player.questLog || [];
+  const enriched = log.map((q) => {
+    const def = world?.quests.find((wq) => wq.id === q.questId);
+    return {
+      ...q,
+      title: def?.title,
+      description: def?.description,
+      objective: def?.objective,
+    };
+  });
+  res.json(enriched);
+});
+
+router.post('/players/:id/quests/:questId', (req, res) => {
+  const player = getPlayer(req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Không tìm thấy người chơi' });
+    return;
+  }
+  const world = getWorld(player.worldId);
+  if (!world) {
+    res.status(404).json({ error: 'Không tìm thấy thế giới' });
+    return;
+  }
+  const { status, progress } = req.body;
+  if (!status || !['active', 'completed', 'failed'].includes(status)) {
+    res.status(400).json({ error: 'status phải là active|completed|failed' });
+    return;
+  }
+  applyQuestUpdate(player, world, {
+    questId: req.params.questId,
+    status,
+    progress,
+  });
+  savePlayer(player);
+  info('api', `POST /players/${req.params.id}/quests/${req.params.questId} → ${status}`);
+  res.json(player.questLog);
 });
 
 // ============================================================
@@ -451,11 +685,10 @@ router.post('/players/:id/relationships/:npcName', (req, res) => {
     player.relationships[npcName] = { trust: 0, respect: 0, friendship: 0, fear: 0, notes: [] };
   }
   const rel = player.relationships[npcName];
-  if (trust !== undefined) rel.trust = Math.max(-100, Math.min(100, rel.trust + trust));
-  if (respect !== undefined) rel.respect = Math.max(-100, Math.min(100, rel.respect + respect));
-  if (friendship !== undefined)
-    rel.friendship = Math.max(-100, Math.min(100, rel.friendship + friendship));
-  if (fear !== undefined) rel.fear = Math.max(-100, Math.min(100, rel.fear + fear));
+  if (trust !== undefined) rel.trust = clampDisp(rel.trust + trust);
+  if (respect !== undefined) rel.respect = clampDisp(rel.respect + respect);
+  if (friendship !== undefined) rel.friendship = clampDisp(rel.friendship + friendship);
+  if (fear !== undefined) rel.fear = clampDisp(rel.fear + fear);
   if (note) rel.notes.push(note);
   savePlayer(player);
   info('api', `POST /players/${req.params.id}/relationships/${npcName} → 200: updated`);

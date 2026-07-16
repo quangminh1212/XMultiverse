@@ -4,18 +4,44 @@
  * and openRPG (world building).
  */
 
+/** Structured location for open-world exploration. */
+export interface Location {
+  id: string;
+  name: string;
+  description: string;
+  atmosphere?: string;
+  /** Names of connected locations (travel graph). */
+  connections: string[];
+  /** NPC character names typically found here. */
+  npcs: string[];
+  tags?: string[];
+}
+
+export type SourceType = 'story' | 'movie' | 'book' | 'anime' | 'original';
+
+/** Player progress on a world quest. */
+export interface QuestProgress {
+  questId: string;
+  status: 'active' | 'completed' | 'failed';
+  progress?: string;
+}
+
 export interface World {
   id: string;
   storyInput: string;
   name: string;
   description: string;
   geography: string[];
+  /** Navigable open-world locations derived from geography. */
+  locations: Location[];
   factions: Faction[];
   magicSystem?: string;
   technologyLevel?: string;
   timeline: TimelineEvent[];
   characters: Character[];
   quests: Quest[];
+  /** Origin of the world seed (story, film, book...). */
+  sourceType?: SourceType;
   createdAt: number;
 }
 
@@ -105,6 +131,10 @@ export interface Player {
   inventory: InventoryItem[];
   stats: PlayerStats;
   currentScene: string;
+  /** Current location id within the world's location graph. */
+  currentLocationId?: string;
+  /** Active/completed quests tracked for this player. */
+  questLog: QuestProgress[];
   /** NPCs this player has interacted with and their disposition. */
   relationships: Record<string, NPCDisposition>;
   /** Summarized scene history for AI context (from ai_rpg scene summarization). */
@@ -119,6 +149,15 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface RelationshipChange {
+  npc: string;
+  trust?: number;
+  respect?: number;
+  friendship?: number;
+  fear?: number;
+  note?: string;
+}
+
 export interface RoleplayResult {
   scene: string;
   events: string[];
@@ -131,6 +170,12 @@ export interface RoleplayResult {
   itemChanges?: ItemChange[];
   /** XP gained. */
   xpGained?: number;
+  /** NPC disposition deltas from this interaction. */
+  relationshipChanges?: RelationshipChange[];
+  /** Quest progress updates. */
+  questUpdates?: QuestProgress[];
+  /** Optional new location id if the player moved during the scene. */
+  movedToLocationId?: string;
 }
 
 /** Dice check result — inspired by GameMaster-GPT 1d20 system. */
