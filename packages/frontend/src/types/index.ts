@@ -37,11 +37,40 @@ export interface Quest {
   status?: 'active' | 'completed' | 'failed';
 }
 
+export interface Location {
+  id: string;
+  name: string;
+  description: string;
+  atmosphere?: string;
+  connections: string[];
+  npcs: string[];
+  tags?: string[];
+}
+
+export type SourceType = 'story' | 'movie' | 'book' | 'anime' | 'original';
+
+export interface QuestProgress {
+  questId: string;
+  status: 'active' | 'completed' | 'failed';
+  progress?: string;
+  title?: string;
+  description?: string;
+  objective?: string;
+}
+
 export type ItemType = 'weapon' | 'armor' | 'potion' | 'key' | 'misc' | 'quest';
 
 export interface ItemEffect {
   stat:
-    'hp' | 'maxHp' | 'mp' | 'maxMp' | 'strength' | 'agility' | 'intelligence' | 'charisma' | 'luck';
+    | 'hp'
+    | 'maxHp'
+    | 'mp'
+    | 'maxMp'
+    | 'strength'
+    | 'agility'
+    | 'intelligence'
+    | 'charisma'
+    | 'luck';
   modifier: number;
   duration?: 'instant' | 'permanent' | 'temporary';
 }
@@ -77,13 +106,15 @@ export interface World {
   name: string;
   description: string;
   geography: string[];
+  locations?: Location[];
   factions: Faction[];
   magicSystem?: string;
   technologyLevel?: string;
   timeline: TimelineEvent[];
   characters: Character[];
   quests: Quest[];
-  createdAt?: string;
+  sourceType?: SourceType;
+  createdAt?: number | string;
 }
 
 export interface Player {
@@ -96,9 +127,20 @@ export interface Player {
   inventory: InventoryItem[];
   stats: PlayerStats;
   currentScene: string;
+  currentLocationId?: string;
+  questLog?: QuestProgress[];
   relationships: Record<string, NPCDisposition>;
   sceneSummaries: string[];
   createdAt?: number;
+}
+
+export interface RelationshipChange {
+  npc: string;
+  trust?: number;
+  respect?: number;
+  friendship?: number;
+  fear?: number;
+  note?: string;
 }
 
 export interface RoleplayResult {
@@ -109,7 +151,11 @@ export interface RoleplayResult {
   effects?: StatChange[];
   itemChanges?: ItemChange[];
   xpGained?: number;
+  relationshipChanges?: RelationshipChange[];
+  questUpdates?: QuestProgress[];
+  movedToLocationId?: string;
   player?: Player;
+  location?: Location;
 }
 
 export interface DiceCheckResult {

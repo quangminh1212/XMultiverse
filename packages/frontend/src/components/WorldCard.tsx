@@ -17,11 +17,13 @@ export function WorldCard({ world, onClick }: WorldCardProps) {
   return (
     <div className="world-card" onClick={() => onClick(world.id)}>
       <h3>{world.name}</h3>
+      {world.sourceType && <span className="badge">{world.sourceType}</span>}
       <p className="world-card-desc">{world.description}</p>
       <div className="world-card-meta">
         <span>📅 {created}</span>
-        <span>🗺️ {world.geography.length} vùng</span>
-        <span>👥 {world.characters.length} nhân vật</span>
+        <span>📍 {world.locations?.length || world.geography?.length || 0} địa điểm</span>
+        <span>👥 {world.characters?.length || 0} NV</span>
+        <span>⚔️ {world.quests?.length || 0} quest</span>
       </div>
     </div>
   );

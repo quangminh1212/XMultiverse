@@ -7,6 +7,9 @@ import type {
   DiceCheckResult,
   SaveSnapshot,
   ChatMessage,
+  Location,
+  SourceType,
+  QuestProgress,
 } from '../types';
 
 const API_BASE = '/api';
@@ -27,9 +30,13 @@ export const api = {
   // Worlds
   listWorlds: () => request<World[]>('/worlds'),
   getWorld: (id: string) => request<World>(`/worlds/${id}`),
-  createWorld: (story: string) =>
-    request<World>('/worlds', { method: 'POST', body: JSON.stringify({ story }) }),
+  createWorld: (story: string, sourceType: SourceType = 'story') =>
+    request<World>('/worlds', {
+      method: 'POST',
+      body: JSON.stringify({ story, sourceType }),
+    }),
   deleteWorld: (id: string) => request<{ ok: boolean }>(`/worlds/${id}`, { method: 'DELETE' }),
+  listLocations: (worldId: string) => request<Location[]>(`/worlds/${worldId}/locations`),
   addTimelineEvent: (
     worldId: string,
     event: { year: string; title: string; description: string; important: boolean },
@@ -54,6 +61,30 @@ export const api = {
   getHistory: (playerId: string) => request<ChatMessage[]>(`/players/${playerId}/history`),
   clearHistory: (playerId: string) =>
     request<{ ok: boolean }>(`/players/${playerId}/history`, { method: 'DELETE' }),
+
+  // Travel
+  travel: (playerId: string, locationId: string) =>
+    request<RoleplayResult & { player: Player; location: Location }>(
+      `/players/${playerId}/travel`,
+      { method: 'POST', body: JSON.stringify({ locationId }) },
+    ),
+  getPlayerLocation: (playerId: string) =>
+    request<{ location: Location | null; currentLocationId?: string }>(
+      `/players/${playerId}/location`,
+    ),
+
+  // Quests
+  getQuests: (playerId: string) => request<QuestProgress[]>(`/players/${playerId}/quests`),
+  updateQuest: (
+    playerId: string,
+    questId: string,
+    status: 'active' | 'completed' | 'failed',
+    progress?: string,
+  ) =>
+    request<QuestProgress[]>(`/players/${playerId}/quests/${questId}`, {
+      method: 'POST',
+      body: JSON.stringify({ status, progress }),
+    }),
 
   // Inventory
   addItem: (playerId: string, item: Partial<InventoryItem>) =>
