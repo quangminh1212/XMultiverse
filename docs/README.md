@@ -89,12 +89,15 @@ xmultiverse/
 ├── .gitignore
 ├── .prettierrc.json
 ├── .prettierignore
-├ ├── CHANGELOG.md
-├── CODE_OF_CONDUCT.md
-├ ├── CONTRIBUTING.md
-├ ├── LICENSE
-├ ├── README.md
-├ ├── package.json
+├── docs/                       # All project markdown
+│   ├── README.md
+│   ├── AGENTS.md
+│   ├── CHANGELOG.md
+│   ├── CONTRIBUTING.md
+│   ├── CODE_OF_CONDUCT.md
+│   └── SECURITY.md
+├── LICENSE
+├── package.json
 └── tsconfig.base.json
 ```
 
