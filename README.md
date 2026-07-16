@@ -12,6 +12,7 @@ AI-powered modular open-world platform.
 | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Contribution guide |
 | [docs/SECURITY.md](./docs/SECURITY.md) | Security policy |
 | [docs/CODE_OF_CONDUCT.md](./docs/CODE_OF_CONDUCT.md) | Code of conduct |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Module / AUTOSAR layout |
 
 ```bash
 npm install

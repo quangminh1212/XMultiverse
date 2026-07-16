@@ -40,21 +40,21 @@ Override: `XMV_LOCATIONS_MAX`, `XMV_QUESTS_MAX`, …
 
 ## Feature modules
 
-Domain services (import when extending):
+Physical module layout (one folder = one SWC):
 
 ```
-packages/backend/src/modules/
-  world/service.ts
-  travel/service.ts
-  roleplay/service.ts
-  quest/service.ts
-  journal/service.ts
-  rpg/service.ts
-  save/service.ts
-  game/routes.ts      # HTTP surface
-  meta/routes.ts      # /api/config*
-  registry.ts
+packages/backend/src/
+  platform/                 # shared BSW (db, logger, dice, worldgen, middleware, types)
+  modules/
+    <name>/
+      index.ts              # FeatureModule
+      routes.ts             # HTTP only for this SWC
+      service.ts            # public API
+    runtime/                # RTE + isolation
+    registry.ts             # mounts each SWC via isolateRouter
 ```
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 Disable optional features:
 
