@@ -1,6 +1,6 @@
 {
   "name": "@xmultiverse/frontend",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "XMultiverse frontend - React UI for AI-generated open worlds.",
   "license": "MIT",

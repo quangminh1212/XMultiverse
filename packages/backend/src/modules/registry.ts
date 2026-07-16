@@ -2,29 +2,29 @@
  * Feature module registry — compose open-world platform from modules.
  */
 import { Router } from 'express';
-import { isFeatureEnabled, listFeatures } from '../config/features';
+import { isFeatureEnabled, listFeatures, FEATURE_CATALOG } from '../config/features';
 import { listScales, defaultScaleId } from '../config/world-scale';
 import type { FeatureModule, ModuleStatus } from './types';
 import { metaModule } from './meta';
 import { gameModule } from './game';
 
-/** Ordered module list (meta first for /config). */
-const MODULES: FeatureModule[] = [metaModule, gameModule];
+/** Ordered HTTP modules (meta first). */
+const HTTP_MODULES: FeatureModule[] = [metaModule, gameModule];
 
-/** Service-layer modules (for tooling / docs / future route splits). */
+/** Domain service modules (importable for extension). */
 export const SERVICE_MODULES = [
-  { id: 'world', path: './world/service' },
-  { id: 'travel', path: './travel/service' },
-  { id: 'roleplay', path: './roleplay/service' },
-  { id: 'quest', path: './quest/service' },
-  { id: 'journal', path: './journal/service' },
-  { id: 'rpg', path: './rpg/service' },
-  { id: 'save', path: './save/service' },
-] as const;
+  { id: 'world' as const, name: 'World building', path: 'modules/world/service' },
+  { id: 'travel' as const, name: 'Travel & map', path: 'modules/travel/service' },
+  { id: 'roleplay' as const, name: 'Roleplay GM', path: 'modules/roleplay/service' },
+  { id: 'quest' as const, name: 'Quests', path: 'modules/quest/service' },
+  { id: 'journal' as const, name: 'Journal', path: 'modules/journal/service' },
+  { id: 'rpg' as const, name: 'RPG systems', path: 'modules/rpg/service' },
+  { id: 'save' as const, name: 'Save/load', path: 'modules/save/service' },
+];
 
 export function listModules(): ModuleStatus[] {
   return [
-    ...MODULES.map((m) => {
+    ...HTTP_MODULES.map((m) => {
       const gated = m.feature ? isFeatureEnabled(m.feature) : true;
       return {
         id: m.id,
@@ -36,7 +36,7 @@ export function listModules(): ModuleStatus[] {
     }),
     ...SERVICE_MODULES.map((s) => ({
       id: s.id,
-      name: `service:${s.id}`,
+      name: s.name,
       feature: s.id as any,
       enabled: isFeatureEnabled(s.id as any),
       mounted: true,
@@ -52,11 +52,13 @@ export function createApiRouter(): Router {
       defaultScale: defaultScaleId(),
       modules: listModules(),
       features: listFeatures(),
+      catalog: FEATURE_CATALOG.map((f) => f.id),
       scales: listScales().map((s) => s.id),
+      services: SERVICE_MODULES,
     });
   });
 
-  for (const mod of MODULES) {
+  for (const mod of HTTP_MODULES) {
     if (mod.feature && !isFeatureEnabled(mod.feature)) continue;
     mod.onInit?.();
     root.use(mod.createRouter());
@@ -64,4 +66,4 @@ export function createApiRouter(): Router {
   return root;
 }
 
-export { MODULES };
+export const MODULES = HTTP_MODULES;

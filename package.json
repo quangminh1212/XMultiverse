@@ -1,6 +1,6 @@
 {
   "name": "xmultiverse",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "AI-powered open-world platform: turn any story, film, or book into a navigable world you can explore and roleplay in.",
   "license": "MIT",
@@ -35,6 +35,7 @@
     "cli": "npm run dev --workspace=@xmultiverse/cli",
     "xmv": "npm run dev --workspace=@xmultiverse/cli --",
     "test": "npm run test --workspace=@xmultiverse/backend",
+    "smoke": "npm run test --workspace=@xmultiverse/backend -- src/app.smoke.test.ts",
     "lint": "prettier --check \"**/*.{ts,tsx,js,json,css,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\"",
     "typecheck": "npm run build --workspace=@xmultiverse/backend && npm run build --workspace=@xmultiverse/cli && tsc -p packages/frontend --noEmit",

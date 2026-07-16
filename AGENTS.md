@@ -1,147 +1,134 @@
 # AGENTS.md — Hướng dẫn cho AI Agent dùng XMultiverse
 
-Tài liệu này dành cho các AI agent (Devin, Claude, GPT, v.v.) muốn tương tác với dự án XMultiverse qua command line.
+Tài liệu này dành cho các AI agent muốn tương tác với **XMultiverse 1.2.0** — platform open-world modular.
 
 ## Quick Start
 
 ```bash
-# 1. Cài dependencies (chỉ lần đầu)
 npm install
+npm run build
 
-# 2. Khởi động backend
-npm run xmv start
+# Demo mode (không cần AI key)
+# packages/backend/.env → DEMO_MODE=true
 
-# 3. Kiểm tra health
-npm run xmv health
+npm run xmv -- start --json
+npm run xmv -- world create --story "..." --source movie --scale expansive --json
+npm run xmv -- player create --world <WORLD_ID> --name "Kael" --role "Warrior" --json
+npm run xmv -- travel --id <PLAYER_ID> --to "Location Name" --json
+npm run xmv -- act --id <PLAYER_ID> --action "Explore" --json
+npm run xmv -- world export --id <WORLD_ID> --out pack.xmv.json --json
+npm run xmv -- stop --json
+```
 
-# 4. Tạo thế giới mở từ cốt truyện / phim
-npm run xmv world create -- --story "Một hiệp sĩ tìm kiếm thanh kiếm thần để đánh bại quỷ vương" --source story
+## Quality gate
 
-# 5. Tạo nhân vật
-npm run xmv player create -- --world <WORLD_ID> --name "Kael" --role "Kiếm sĩ"
+```bash
+npm run verify   # lint + unit/smoke tests + build
+npm run smoke    # E2E API loop only
+```
 
-# 6. Du hành trên bản đồ
-npm run xmv travel -- --id <PLAYER_ID> --to "Rừng sâu Bóng Đêm"
+## Open-world scales
 
-# 7. Nhập vai — thực hiện hành động
-npm run xmv act -- --id <PLAYER_ID> --action "Khám phá xung quanh"
+| Scale | ~locations | Env |
+|-------|------------|-----|
+| compact | 5 | `XMV_WORLD_SCALE=compact` |
+| standard | 8 | default |
+| expansive | 16 | |
+| epic | 28–32 | |
 
-# 8. Dừng server khi xong
-npm run xmv stop
+Override: `XMV_LOCATIONS_MAX`, `XMV_QUESTS_MAX`, …
+
+## Feature modules
+
+Domain services (import when extending):
+
+```
+packages/backend/src/modules/
+  world/service.ts
+  travel/service.ts
+  roleplay/service.ts
+  quest/service.ts
+  journal/service.ts
+  rpg/service.ts
+  save/service.ts
+  game/routes.ts      # HTTP surface
+  meta/routes.ts      # /api/config*
+  registry.ts
+```
+
+Disable optional features:
+
+```env
+XMV_FEATURES_DISABLED=journal,relationships
 ```
 
 ## CLI Reference
 
-Tất cả lệnh đều có flag `--json` để xuất JSON (cho AI agent parse) và `--verbose` để xem data chi tiết.
-
-### Server
-
 | Lệnh | Mô tả |
 |------|-------|
-| `xmv start` | Khởi động backend (background process) |
-| `xmv stop` | Dừng backend |
-| `xmv status` | Kiểm tra backend đang chạy không |
-| `xmv health` | Health check endpoint |
+| `xmv doctor` | Chẩn đoán env |
+| `xmv start` / `stop` / `status` / `health` | Server |
+| `xmv world create --story "..." [--source] [--scale]` | Tạo world |
+| `xmv world list` / `get` / `export` / `import` | World |
+| `xmv player create` / `list` | Nhân vật |
+| `xmv travel --id --to` | Du hành |
+| `xmv act` / `history` | Roleplay |
+| `xmv stats` / `inventory` / `roll` / `check` | RPG |
+| `xmv save` / `load` / `saves` | Snapshot |
+| `xmv event add` | Timeline |
 
-### World
+Mọi lệnh hỗ trợ `--json`.
 
-| Lệnh | Mô tả |
-|------|-------|
-| `xmv world create --story "..." [--source story\|movie\|book\|anime]` | Tạo thế giới mở từ cốt truyện/phim |
-| `xmv world list` | Liệt kê tất cả thế giới |
-| `xmv world get --id <worldId>` | Xem chi tiết thế giới (locations, quests...) |
-
-### Player
-
-| Lệnh | Mô tả |
-|------|-------|
-| `xmv player create --world <id> --name "..." --role "..." [--backstory "..."] [--faction "..."]` | Tạo nhân vật |
-| `xmv player list --world <id>` | Liệt kê nhân vật trong thế giới |
-
-### Roleplay
-
-| Lệnh | Mô tả |
-|------|-------|
-| `xmv act --id <playerId> --action "..."` | Thực hiện hành động nhập vai |
-| `xmv travel --id <playerId> --to "<location>"` | Du hành tới địa điểm trên bản đồ |
-| `xmv history --id <playerId>` | Xem lịch sử chat |
-
-### Timeline
-
-| Lệnh | Mô tả |
-|------|-------|
-| `xmv event add --world <id> --title "..." --desc "..." [--year 2024] [--important]` | Thêm sự kiện timeline |
-
-## JSON Output Format
-
-Khi dùng `--json`, mọi lệnh xuất theo format thống nhất:
+## JSON Output
 
 ```json
 {
   "ok": true,
   "command": "world-create",
-  "message": "Đã tạo thế giới \"Vùng đất bóng tối\" (ID: abc-123)",
-  "data": { ... },
-  "timestamp": "2026-07-15T00:00:00.000Z"
+  "message": "...",
+  "data": { },
+  "timestamp": "..."
 }
 ```
 
-- `ok`: `true` nếu thành công, `false` nếu lỗi
-- `command`: tên lệnh đã chạy
-- `message`: mô tả kết quả (tiếng Việt)
-- `data`: data chi tiết (world, player, result, v.v.)
-- `timestamp`: ISO 8601
+## API (selected)
 
-## Workflow đầy đủ cho AI Agent
+| Method | Path | Mô tả |
+|--------|------|-------|
+| GET | `/health` | Health + modular + scale |
+| GET | `/api/config` | Scales + features + limits |
+| POST | `/api/worlds` | `{ story, sourceType?, scale? }` |
+| GET | `/api/worlds/:id/export` | World pack |
+| POST | `/api/worlds/import` | Import pack |
+| POST | `/api/players/:id/travel` | `{ locationId }` |
+| POST | `/api/players/:id/act` | `{ action, autosave? }` |
 
-```bash
-# Bước 1: Khởi động
-npm run xmv start -- --json
-# → Parse response, kiểm tra ok=true
-
-# Bước 2: Tạo thế giới
-npm run xmv world create -- --story "..." --json
-# → Parse data.id → WORLD_ID
-
-# Bước 3: Tạo nhân vật
-npm run xmv player create -- --world <WORLD_ID> --name "Hero" --role "Warrior" --json
-# → Parse data.id → PLAYER_ID
-
-# Bước 4: Nhập vai (lặp nhiều lần)
-npm run xmv act -- --id <PLAYER_ID> --action "..." --json
-# → Parse data.scene, data.choices, data.events
-
-# Bước 5: Thêm sự kiện timeline nếu cần
-npm run xmv event add -- --world <WORLD_ID> --title "..." --desc "..." --json
-
-# Bước 6: Dọn dẹp
-npm run xmv stop -- --json
-```
-
-## Build & Verify
-
-```bash
-npm run build          # Build tất cả packages
-npm run lint           # Kiểm tra formatting
-npm run format         # Tự động format
-```
-
-## Environment Variables
+## Environment
 
 | Biến | Mặc định | Mô tả |
 |------|----------|-------|
-| `XMV_API_URL` | `http://localhost:3001` | URL backend cho CLI |
-| `AI_API_KEY` | — | API key cho AI (OpenAI, Groq, Gemini...) |
-| `AI_BASE_URL` | `https://api.openai.com/v1` | Base URL AI provider |
-| `AI_MODEL` | `gpt-4o-mini` | Model AI |
-| `DEMO_MODE` | `false` | Bật demo mode (không cần AI key) |
-| `PORT` | `3001` | Port backend |
-| `DB_PATH` | `./data/worlds.db` | Đường dẫn SQLite |
+| `XMV_API_URL` | `http://localhost:3001` | CLI → backend |
+| `AI_API_KEY` | — | AI provider |
+| `AI_BASE_URL` | OpenAI | |
+| `AI_MODEL` | `gpt-4o-mini` | |
+| `DEMO_MODE` | `false` | Template worlds offline |
+| `PORT` | `3001` | |
+| `DB_PATH` | `./data/worlds.db` | |
+| `XMV_WORLD_SCALE` | `standard` | Default scale |
+| `XMV_FEATURES_DISABLED` | — | Comma feature ids |
 
-## Lưu ý
+## Completion criteria (v1.2.0)
 
-- Backend phải đang chạy trước khi gọi `world create`, `player create`, `act`, v.v.
-- Dùng `xmv start` để khởi động backend background, hoặc `npm run dev` để chạy cả backend + frontend.
-- Trong demo mode (`DEMO_MODE=true`), thế giới được sinh từ template cố định, không gọi AI thật.
-- Để dùng AI thật: set `AI_API_KEY` và `DEMO_MODE=false` trong `.env`.
-- File `.env` phải nằm ở `packages/backend/.env` (hoặc root, backend sẽ tìm cả hai).
+Platform single-player open-world được coi là **hoàn thiện** khi:
+
+1. Tạo world từ story/movie với scale tùy chỉnh  
+2. Bản đồ graph + travel có rule connection  
+3. Roleplay + RPG (stats, inventory, dice)  
+4. Quest / journal / discovery  
+5. Save-load + export/import pack  
+6. CLI agent JSON + UI web  
+7. Module registry + feature flags  
+8. Unit + smoke E2E pass (`npm run verify`)  
+9. OSS: LICENSE, SECURITY, CI, CONTRIBUTING, CHANGELOG  
+
+Ngoài scope v1 (có thể làm sau): multiplayer, auth cloud, streaming AI, marketplace packs.

@@ -138,7 +138,7 @@ export function exportWorldPack(world: World): WorldPack {
   return {
     format: 'xmultiverse-world-v1',
     exportedAt: Date.now(),
-    version: '1.1.0',
+    version: '1.2.0',
     world: slimWorld(world),
   };
 }

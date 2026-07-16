@@ -42,7 +42,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     demoMode: config.ai.demoMode,
-    version: process.env.npm_package_version || '1.1.0',
+    version: process.env.npm_package_version || '1.2.0',
     uptime: Math.floor(process.uptime()),
     defaultScale: defaultScaleId(),
     modular: true,

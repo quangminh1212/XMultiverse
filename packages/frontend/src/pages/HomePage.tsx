@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useWorlds } from '../hooks/useWorlds';
 import { WorldCard } from '../components/WorldCard';
 import { WorldView } from './WorldView';
 import { api } from '../services/api';
 import type { SourceType, World, WorldScale } from '../types';
 
-const SCALES: { id: WorldScale; label: string; hint: string }[] = [
+const DEFAULT_SCALES: { id: WorldScale; label: string; hint: string }[] = [
   { id: 'compact', label: 'Compact', hint: '~5 địa điểm' },
   { id: 'standard', label: 'Standard', hint: '~8 địa điểm' },
   { id: 'expansive', label: 'Expansive', hint: '~16 địa điểm' },
@@ -62,8 +62,31 @@ export function HomePage() {
   const [storyInput, setStoryInput] = useState('');
   const [sourceType, setSourceType] = useState<SourceType>('story');
   const [scale, setScale] = useState<WorldScale>('standard');
+  const [scales, setScales] = useState(DEFAULT_SCALES);
   const [currentWorld, setCurrentWorld] = useState<World | null>(null);
   const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    api
+      .getConfig()
+      .then((cfg) => {
+        if (cfg.defaultScale) setScale(cfg.defaultScale as WorldScale);
+        if (cfg.scales?.length) {
+          setScales(
+            cfg.scales
+              .filter((s) => s.id !== 'custom')
+              .map((s) => ({
+                id: s.id as WorldScale,
+                label: s.label,
+                hint: `~${s.locationsTarget} địa điểm (max ${s.locationsMax})`,
+              })),
+          );
+        }
+      })
+      .catch(() => {
+        /* keep defaults when backend offline */
+      });
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -165,7 +188,7 @@ export function HomePage() {
               ))}
             </div>
             <div className="source-type-row" style={{ marginBottom: 12 }}>
-              {SCALES.map((s) => (
+              {scales.map((s) => (
                 <button
                   key={s.id}
                   type="button"
@@ -179,7 +202,7 @@ export function HomePage() {
             </div>
             <p style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: 12 }}>
               Open-world scale: <strong>{scale}</strong> —{' '}
-              {SCALES.find((s) => s.id === scale)?.hint}. Có thể mở rộng sau qua scale / env.
+              {scales.find((s) => s.id === scale)?.hint}. Module hóa + feature flags trên backend.
             </p>
             <textarea
               rows={5}

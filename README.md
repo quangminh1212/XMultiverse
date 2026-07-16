@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
+  <a href="./CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-1.2.0-blue.svg" /></a>
   <a href="./CHANGELOG.md"><img alt="Changelog" src="https://img.shields.io/badge/Changelog-Keep%20a%20Changelog-blue.svg" /></a>
   <a href="https://nodejs.org"><img alt="Node.js" src="https://img.shields.io/badge/Node.js-%3E%3D18-green.svg" /></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.5-blue.svg" /></a>
@@ -15,7 +16,7 @@
 
 ## Giới thiệu
 
-**XMultiverse** là platform kiến tạo **thế giới mở** từ cốt truyện, phim, sách hoặc anime. AI sinh **bản đồ địa điểm có thể du hành**, **timeline**, **NPC**, **phe phái**, **quests** — rồi người chơi (hoặc AI agent qua CLI) bước vào **khám phá**, **nhập vai**, và để lại dấu ấn lên thế giới.
+**XMultiverse** (v1.2.0) là platform **modular open-world**: nhập cốt truyện/phim → AI (hoặc demo mode) sinh **đồ thị địa điểm** theo **scale** (compact → epic), factions, timeline, NPC, quests. Người chơi / AI agent **du hành**, **nhập vai**, **quest/journal**, **save/export**. Feature flags bật/tắt module; mở rộng bằng `modules/*/service.ts`.
 
 ## Tính năng
 
