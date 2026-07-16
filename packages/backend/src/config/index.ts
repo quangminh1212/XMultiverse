@@ -1,6 +1,19 @@
 import dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 
-dotenv.config();
+// Load .env from common monorepo locations (first match wins)
+for (const candidate of [
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), 'packages/backend/.env'),
+  resolve(__dirname, '../../.env'),
+  resolve(__dirname, '../../../.env'),
+]) {
+  if (existsSync(candidate)) {
+    dotenv.config({ path: candidate });
+    break;
+  }
+}
 
 export interface AiClientConfig {
   apiKey: string;

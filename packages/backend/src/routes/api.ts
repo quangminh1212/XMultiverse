@@ -34,14 +34,14 @@ import {
   addXp,
   rollDice,
 } from '../services/dice';
-import type {
-  Player,
-  TimelineEvent,
-  InventoryItem,
-  SaveSnapshot,
-  SourceType,
-  QuestProgress,
-} from '../types';
+import type { Player, TimelineEvent, InventoryItem, SaveSnapshot, QuestProgress } from '../types';
+import { HttpError } from '../middleware/http-error';
+import {
+  requireString,
+  parseSourceType,
+  parseQuestStatus,
+  asyncHandler,
+} from '../middleware/validate';
 
 const router = Router();
 
@@ -79,21 +79,11 @@ function applyQuestUpdate(
 // Worlds
 // ============================================================
 
-router.post('/worlds', async (req, res, next) => {
-  try {
-    const { story, sourceType } = req.body;
-    if (!story || typeof story !== 'string') {
-      warn('api', 'POST /worlds → 400: missing story');
-      res.status(400).json({ error: 'story là bắt buộc' });
-      return;
-    }
-    const src: SourceType =
-      sourceType === 'movie' ||
-      sourceType === 'book' ||
-      sourceType === 'anime' ||
-      sourceType === 'original'
-        ? sourceType
-        : 'story';
+router.post(
+  '/worlds',
+  asyncHandler(async (req, res) => {
+    const story = requireString(req.body?.story, 'story', { min: 5, max: 20_000 });
+    const src = parseSourceType(req.body?.sourceType);
     info(
       'api',
       `POST /worlds: source=${src} story="${story.slice(0, 60)}..." (${story.length} chars)`,
@@ -104,11 +94,9 @@ router.post('/worlds', async (req, res, next) => {
       'api',
       `POST /worlds → 200: world="${world.name}" id=${world.id} locations=${world.locations?.length || 0}`,
     );
-    res.json(world);
-  } catch (err) {
-    next(err);
-  }
-});
+    res.status(201).json(world);
+  }),
+);
 
 router.get('/worlds', (_req, res) => {
   const worlds = listWorlds();
@@ -116,110 +104,107 @@ router.get('/worlds', (_req, res) => {
   res.json(worlds);
 });
 
-router.get('/worlds/:id', (req, res) => {
-  const world = getWorld(req.params.id);
-  if (!world) {
-    warn('api', `GET /worlds/${req.params.id} → 404`);
-    res.status(404).json({ error: 'Không tìm thấy thế giới' });
-    return;
+router.get('/worlds/:id', (req, res, next) => {
+  try {
+    const world = getWorld(req.params.id);
+    if (!world) throw HttpError.notFound('World not found');
+    info('api', `GET /worlds/${req.params.id} → 200: "${world.name}"`);
+    res.json(world);
+  } catch (err) {
+    next(err);
   }
-  info('api', `GET /worlds/${req.params.id} → 200: "${world.name}"`);
-  res.json(world);
 });
 
-router.delete('/worlds/:id', (req, res) => {
-  const world = getWorld(req.params.id);
-  if (!world) {
-    warn('api', `DELETE /worlds/${req.params.id} → 404`);
-    res.status(404).json({ error: 'Không tìm thấy thế giới' });
-    return;
+router.delete('/worlds/:id', (req, res, next) => {
+  try {
+    const world = getWorld(req.params.id);
+    if (!world) throw HttpError.notFound('World not found');
+    deleteWorld(req.params.id);
+    info('api', `DELETE /worlds/${req.params.id} → 200: deleted "${world.name}"`);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
   }
-  deleteWorld(req.params.id);
-  info('api', `DELETE /worlds/${req.params.id} → 200: deleted "${world.name}"`);
-  res.json({ ok: true });
 });
 
-router.post('/worlds/:id/events', (req, res) => {
-  const world = getWorld(req.params.id);
-  if (!world) {
-    warn('api', `POST /worlds/${req.params.id}/events → 404`);
-    res.status(404).json({ error: 'Không tìm thấy thế giới' });
-    return;
+router.post('/worlds/:id/events', (req, res, next) => {
+  try {
+    const world = getWorld(req.params.id);
+    if (!world) throw HttpError.notFound('World not found');
+    const title = requireString(req.body?.title, 'title', { max: 200 });
+    const description = requireString(req.body?.description, 'description', { max: 5000 });
+    const year = Number(req.body?.year) || 0;
+    const event: TimelineEvent = {
+      id: crypto.randomUUID(),
+      year,
+      title,
+      description,
+      important: Boolean(req.body?.important),
+    };
+    world.timeline.push(event);
+    world.timeline.sort((a, b) => a.year - b.year);
+    saveWorld(world);
+    info('api', `POST /worlds/${req.params.id}/events → 200: added "${title}" (year ${year})`);
+    res.status(201).json(world);
+  } catch (err) {
+    next(err);
   }
-  const { year, title, description, important } = req.body;
-  if (!title || !description) {
-    warn('api', `POST /worlds/${req.params.id}/events → 400: missing title/desc`);
-    res.status(400).json({ error: 'title và description là bắt buộc' });
-    return;
-  }
-  const event: TimelineEvent = {
-    id: crypto.randomUUID(),
-    year: Number(year) || 0,
-    title,
-    description,
-    important: important ?? false,
-  };
-  world.timeline.push(event);
-  world.timeline.sort((a, b) => a.year - b.year);
-  saveWorld(world);
-  info('api', `POST /worlds/${req.params.id}/events → 200: added "${title}" (year ${year})`);
-  res.json(world);
 });
 
 // ============================================================
 // Players
 // ============================================================
 
-router.post('/worlds/:id/players', (req, res) => {
-  const world = getWorld(req.params.id);
-  if (!world) {
-    warn('api', `POST /worlds/${req.params.id}/players → 404`);
-    res.status(404).json({ error: 'Không tìm thấy thế giới' });
-    return;
-  }
-  const { name, role, backstory, faction } = req.body;
-  if (!name || !role) {
-    warn('api', `POST /worlds/${req.params.id}/players → 400: missing name/role`);
-    res.status(400).json({ error: 'name và role là bắt buộc' });
-    return;
-  }
-  const startLoc = getStartingLocation(world);
-  const player: Player = {
-    id: crypto.randomUUID(),
-    worldId: world.id,
-    name,
-    role,
-    backstory: backstory || '',
-    faction: faction || undefined,
-    inventory: [],
-    stats: createDefaultStats(role),
-    currentScene: startLoc
-      ? `${startLoc.description} Bạn đang ở ${startLoc.name}.`
-      : world.description,
-    currentLocationId: startLoc?.id,
-    questLog: (world.quests || []).slice(0, 2).map(
-      (q): QuestProgress => ({
+router.post('/worlds/:id/players', (req, res, next) => {
+  try {
+    const world = getWorld(req.params.id);
+    if (!world) throw HttpError.notFound('World not found');
+    const name = requireString(req.body?.name, 'name', { min: 1, max: 80 });
+    const role = requireString(req.body?.role, 'role', { min: 1, max: 80 });
+    const backstory =
+      typeof req.body?.backstory === 'string' ? req.body.backstory.slice(0, 4000) : '';
+    const faction =
+      typeof req.body?.faction === 'string' && req.body.faction.trim()
+        ? req.body.faction.trim().slice(0, 80)
+        : undefined;
+    const startLoc = getStartingLocation(world);
+    const player: Player = {
+      id: crypto.randomUUID(),
+      worldId: world.id,
+      name,
+      role,
+      backstory,
+      faction,
+      inventory: [],
+      stats: createDefaultStats(role),
+      currentScene: startLoc
+        ? `${startLoc.description} Bạn đang ở ${startLoc.name}.`
+        : world.description,
+      currentLocationId: startLoc?.id,
+      questLog: (world.quests || []).slice(0, 2).map((q): QuestProgress => ({
         questId: q.id,
         status: 'active',
         progress: 'Mới nhận',
-      }),
-    ),
-    relationships: {},
-    sceneSummaries: [],
-    createdAt: Date.now(),
-  };
-  savePlayer(player);
-  addChatMessage(player.id, {
-    role: 'system',
-    content: `Chào mừng ${name} đến với thế giới ${world.name}. Bạn là ${role}.${
-      startLoc ? ` Bắt đầu tại: ${startLoc.name}.` : ''
-    }`,
-  });
-  info(
-    'api',
-    `POST /worlds/${req.params.id}/players → 200: player="${name}" role=${role} id=${player.id} loc=${startLoc?.name || 'n/a'}`,
-  );
-  res.json(player);
+      })),
+      relationships: {},
+      sceneSummaries: [],
+      createdAt: Date.now(),
+    };
+    savePlayer(player);
+    addChatMessage(player.id, {
+      role: 'system',
+      content: `Chào mừng ${name} đến với thế giới ${world.name}. Bạn là ${role}.${
+        startLoc ? ` Bắt đầu tại: ${startLoc.name}.` : ''
+      }`,
+    });
+    info(
+      'api',
+      `POST /worlds/${req.params.id}/players → 201: player="${name}" role=${role} id=${player.id}`,
+    );
+    res.status(201).json(player);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/worlds/:id/players', (req, res) => {
@@ -258,24 +243,11 @@ router.delete('/players/:id', (req, res) => {
 router.post('/players/:id/act', async (req, res, next) => {
   try {
     const player = getPlayer(req.params.id);
-    if (!player) {
-      warn('api', `POST /players/${req.params.id}/act → 404: player not found`);
-      res.status(404).json({ error: 'Không tìm thấy người chơi' });
-      return;
-    }
+    if (!player) throw HttpError.notFound('Player not found');
     const world = getWorld(player.worldId);
-    if (!world) {
-      warn('api', `POST /players/${req.params.id}/act → 404: world not found`);
-      res.status(404).json({ error: 'Không tìm thấy thế giới' });
-      return;
-    }
+    if (!world) throw HttpError.notFound('World not found');
 
-    const { action } = req.body;
-    if (!action) {
-      warn('api', `POST /players/${req.params.id}/act → 400: missing action`);
-      res.status(400).json({ error: 'action là bắt buộc' });
-      return;
-    }
+    const action = requireString(req.body?.action, 'action', { min: 1, max: 2000 });
 
     info(
       'api',
@@ -450,26 +422,22 @@ router.get('/worlds/:id/locations', (req, res) => {
   res.json(world.locations || []);
 });
 
-router.post('/players/:id/travel', (req, res) => {
-  const player = getPlayer(req.params.id);
-  if (!player) {
-    warn('api', `POST /players/${req.params.id}/travel → 404 player`);
-    res.status(404).json({ error: 'Không tìm thấy người chơi' });
-    return;
-  }
-  const world = getWorld(player.worldId);
-  if (!world) {
-    res.status(404).json({ error: 'Không tìm thấy thế giới' });
-    return;
-  }
-  const { locationId, location } = req.body;
-  const target = locationId || location;
-  if (!target) {
-    res.status(400).json({ error: 'locationId hoặc location là bắt buộc' });
-    return;
-  }
+router.post('/players/:id/travel', (req, res, next) => {
   try {
-    const result = travelToLocation(world, player, target);
+    const player = getPlayer(req.params.id);
+    if (!player) throw HttpError.notFound('Player not found');
+    const world = getWorld(player.worldId);
+    if (!world) throw HttpError.notFound('World not found');
+    const target = req.body?.locationId || req.body?.location;
+    if (!target || typeof target !== 'string') {
+      throw HttpError.badRequest('locationId or location is required');
+    }
+    let result;
+    try {
+      result = travelToLocation(world, player, target);
+    } catch (e: any) {
+      throw HttpError.badRequest(e.message || 'Invalid travel');
+    }
     player.currentLocationId = result.location.id;
     player.currentScene = result.scene;
     player.sceneSummaries.push(result.scene.slice(0, 200));
@@ -482,10 +450,7 @@ router.post('/players/:id/travel', (req, res) => {
       content: `Di chuyển tới ${result.location.name}`,
     });
     addChatMessage(player.id, { role: 'assistant', content: result.scene });
-    info(
-      'api',
-      `POST /players/${req.params.id}/travel → 200: ${result.location.name}`,
-    );
+    info('api', `POST /players/${req.params.id}/travel → 200: ${result.location.name}`);
     res.json({
       scene: result.scene,
       location: result.location,
@@ -493,9 +458,8 @@ router.post('/players/:id/travel', (req, res) => {
       events: [],
       player,
     });
-  } catch (err: any) {
-    warn('api', `POST /players/${req.params.id}/travel → 400: ${err.message}`);
-    res.status(400).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -540,30 +504,26 @@ router.get('/players/:id/quests', (req, res) => {
   res.json(enriched);
 });
 
-router.post('/players/:id/quests/:questId', (req, res) => {
-  const player = getPlayer(req.params.id);
-  if (!player) {
-    res.status(404).json({ error: 'Không tìm thấy người chơi' });
-    return;
+router.post('/players/:id/quests/:questId', (req, res, next) => {
+  try {
+    const player = getPlayer(req.params.id);
+    if (!player) throw HttpError.notFound('Player not found');
+    const world = getWorld(player.worldId);
+    if (!world) throw HttpError.notFound('World not found');
+    const status = parseQuestStatus(req.body?.status);
+    const progress =
+      typeof req.body?.progress === 'string' ? req.body.progress.slice(0, 500) : undefined;
+    applyQuestUpdate(player, world, {
+      questId: req.params.questId,
+      status,
+      progress,
+    });
+    savePlayer(player);
+    info('api', `POST /players/${req.params.id}/quests/${req.params.questId} → ${status}`);
+    res.json(player.questLog);
+  } catch (err) {
+    next(err);
   }
-  const world = getWorld(player.worldId);
-  if (!world) {
-    res.status(404).json({ error: 'Không tìm thấy thế giới' });
-    return;
-  }
-  const { status, progress } = req.body;
-  if (!status || !['active', 'completed', 'failed'].includes(status)) {
-    res.status(400).json({ error: 'status phải là active|completed|failed' });
-    return;
-  }
-  applyQuestUpdate(player, world, {
-    questId: req.params.questId,
-    status,
-    progress,
-  });
-  savePlayer(player);
-  info('api', `POST /players/${req.params.id}/quests/${req.params.questId} → ${status}`);
-  res.json(player.questLog);
 });
 
 // ============================================================
