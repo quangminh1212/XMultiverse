@@ -234,14 +234,20 @@ Log file tự động xóa khi vượt quá 100MB.
 
 ## Scripts
 
-| Command          | Mô tả                                    |
-| ---------------- | ---------------------------------------- |
-| `npm run dev`    | Chạy backend + frontend song song        |
-| `npm run build`  | Build cả backend và frontend             |
-| `npm run start`  | Chạy backend production                  |
-| `npm run lint`   | Kiểm tra formatting với Prettier         |
-| `npm run format` | Tự động format code với Prettier         |
-| `npm run clean`  | Xóa dist, node_modules, data             |
+| Command           | Mô tả                                         |
+| ----------------- | --------------------------------------------- |
+| `npm run dev`     | Backend + frontend song song                  |
+| `npm run build`   | Build backend, frontend, CLI                  |
+| `npm run start`   | Backend production                            |
+| `npm test`        | Unit tests (Vitest, backend)                  |
+| `npm run verify`  | lint + test + build (CI-equivalent)           |
+| `npm run lint`    | Prettier check                                |
+| `npm run format`  | Prettier write                                |
+| `npm run clean`   | Xóa dist, node_modules, data                  |
+
+## Security
+
+Xem [SECURITY.md](./SECURITY.md). API trả lỗi dạng `{ error, code }`, có security headers và rate limit cấu hình qua env.
 
 ## Đóng góp
 

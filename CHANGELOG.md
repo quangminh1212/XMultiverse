@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-16
+
 ### Added
 - Open-world **locations graph** generated with each world (5–10 connected places).
 - **Travel** API/CLI/UI: move between locations with connection rules.
@@ -15,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Player **quest log** + relationship updates applied from roleplay results.
 - Save list **load/delete** UI; map panel and current-location badge.
 - CLI: `xmv travel --id <player> --to "<location>"`; `world create --source ...`.
+- **Unit tests** (Vitest) for dice, validation, and worldgen travel graph.
+- Consistent **API errors** (`error` + `code`), request validation, security headers, rate limit.
+- `SECURITY.md`, GitHub issue/PR templates; CI matrix Node 18/20/22 with `npm test`.
+
+### Changed
+- Version bump to **1.1.0** across workspaces.
+- Health endpoint includes `version` and `uptime`.
+- CONTRIBUTING / package metadata aligned with international OSS practices.
 
 ## [1.0.0] - 2026-07-15
 

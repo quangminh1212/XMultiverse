@@ -9,26 +9,39 @@ Cảm ơn bạn quan tâm đến việc đóng góp cho XMultiverse! Tài liệu
 3. Cài đặt dependencies: `npm install`
 4. Tạo một branch mới cho tính năng/sửa lỗi của bạn: `git checkout -b feature/my-feature`
 
-## Quy ước code
+## Development setup
 
-- Sử dụng **TypeScript** cho cả backend và frontend.
-- Tuân thủ cấu trúc thư mục hiện có (xem [README.md](./README.md)).
-- Đặt tên file theo **kebab-case** cho file thường, **PascalCase** cho component React.
-- Viết commit message theo [Conventional Commits](https://www.conventionalcommits.org/):
-  - `feat: thêm tính năng X`
-  - `fix: sửa lỗi Y`
-  - `docs: cập nhật README`
-  - `refactor: tái cấu trúc module Z`
-- Chạy `npm run build` trước khi commit để đảm bảo không có lỗi TypeScript.
-- Chạy `npm run lint` (nếu có) để kiểm tra style code.
+```bash
+npm install
+cp .env.example packages/backend/.env   # or set DEMO_MODE=true
+npm run dev                             # backend :3001 + frontend :5173
+```
 
-## Quy trình Pull Request
+## Code standards
 
-1. Đảm bảo code build thành công: `npm run build`
-2. Push branch lên fork của bạn.
-3. Mở Pull Request về branch `main` của repository gốc.
-4. Mô tả rõ ràng thay đổi trong PR: vấn đề giải quyết, cách tiếp cận, ảnh hưởng.
-5. Đợi review và phản hồi các bình luận.
+- **TypeScript** for backend, frontend, and CLI.
+- Follow existing package layout (see [README.md](./README.md)).
+- File names: **kebab-case** for modules; **PascalCase** for React components.
+- Commits: [Conventional Commits](https://www.conventionalcommits.org/) in English, one short line:
+  - `feat: add location travel graph`
+  - `fix: validate world create input`
+  - `docs: update API reference`
+  - `test: cover skill checks`
+- Before opening a PR, run:
+
+```bash
+npm run verify   # lint + test + build
+```
+
+Or step by step: `npm run format` → `npm test` → `npm run build`.
+
+## Pull request process
+
+1. Branch from `main` (`feature/*`, `fix/*`, `chore/*`).
+2. Pass `npm run verify`.
+3. Open a PR using the template; describe problem, approach, and test plan.
+4. Update [CHANGELOG.md](./CHANGELOG.md) for user-facing changes.
+5. Wait for review; address feedback.
 
 ## Quy ước branch
 
