@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Discovery map**: track visited locations + % explored.
-- **Journal**: auto entries on travel/act + manual notes.
+- **Journal**: auto entries on discovery + manual notes (not every act).
 - **World export/import** (JSON pack `xmultiverse-world-v1`) — API, UI, CLI.
 - **Genre-aware demo worlds**: scifi, noir, post-apoc, magic, mecha, fantasy.
-- **Autosave** after act/travel (rolling `Autosave` snapshot).
 - Quest status actions (active/completed/failed) in UI.
 - Homepage world search + import JSON; map shortcuts explore / talk NPC.
+- **Lightweight open-world caps** (`config/limits.ts`): max 8 locations, slim AI context, throttled opt-in autosave, light world list, capped chat/journal/timeline.
+
+### Changed
+- Autosave is **opt-in** (and throttled); discovery still auto-saves once.
+- Chat stores plain scene text (not full JSON blobs).
+- World list endpoint returns a compact projection.
 
 ## [1.1.0] - 2026-07-16
 

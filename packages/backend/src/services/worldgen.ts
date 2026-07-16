@@ -48,32 +48,32 @@ const WORLD_SYSTEM_PROMPT = `Bạn là kiến trúc sư thế giới mở (open-
   ]
 }
 
-Quy tắc:
-- locations: 5-10 địa điểm nối thành đồ thị (mỗi nơi có ≥1 connection hợp lệ).
-- Timeline: 6-10 sự kiện. Characters: 4-8. Quests: 3-5. Factions: 2-5.
-- Nếu nguồn là phim/sách, giữ tinh thần và bối cảnh gốc nhưng biến thành thế giới mở để khám phá (không spoil cứng; cho nhánh lựa chọn).
+Quy tắc (lightweight open-world):
+- locations: 5–8 địa điểm, mỗi mô tả ≤2 câu, ≤4 connections, ≤3 NPCs.
+- Timeline: 4–6 sự kiện. Characters: 3–6. Quests: 2–4. Factions: 2–3.
+- Giữ tinh thần cốt truyện/phim nhưng gọn; không viết tiểu thuyết dài.
 - Chỉ trả về JSON.`;
 
-const ROLEPLAY_SYSTEM_PROMPT = `Bạn là Game Master của một thế giới mở. Dựa trên thế giới, vị trí hiện tại, timeline, NPC, chỉ số và hành động, tiếp tục câu chuyện.
+const ROLEPLAY_SYSTEM_PROMPT = `Bạn là Game Master thế giới mở — phản hồi GỌN, đủ chơi.
 
 Đầu ra JSON:
 {
-  "scene": "Mô tả cảnh 2-4 câu, tiểu thuyết, phản ánh địa điểm hiện tại",
-  "events": ["sự kiện timeline mới nếu có"],
+  "scene": "1-3 câu, bám location hiện tại",
+  "events": [],
   "choices": ["lựa chọn 1", "lựa chọn 2", "lựa chọn 3"],
-  "effects": [{"stat": "hp|mp|strength|agility|intelligence|charisma|luck", "delta": -5, "reason": "lý do"}],
-  "itemChanges": [{"item": {"id": "uuid", "name": "tên", "description": "mô tả", "type": "weapon|armor|potion|key|misc|quest", "quantity": 1, "value": 10}, "action": "add|remove"}],
-  "xpGained": 10,
-  "relationshipChanges": [{"npc": "Tên NPC", "trust": 5, "respect": 0, "friendship": 3, "fear": 0, "note": "ghi chú"}],
-  "questUpdates": [{"questId": "id hoặc title", "status": "active|completed|failed", "progress": "tiến độ"}],
-  "movedToLocationId": "id địa điểm nếu nhân vật đã di chuyển (hoặc null)"
+  "effects": [],
+  "itemChanges": [],
+  "xpGained": 5,
+  "relationshipChanges": [],
+  "questUpdates": [],
+  "movedToLocationId": null
 }
 
-Quy tắc:
-- Phản ánh location hiện tại và connections.
-- relationshipChanges khi tương tác NPC; questUpdates khi nhiệm vụ tiến triển.
-- effects/itemChanges/xpGained chỉ khi hợp lý. choices: 3 gợi ý (có thể gồm di chuyển).
-- Chỉ trả về JSON.`;
+Quy tắc (nhẹ):
+- scene tối đa ~400 ký tự; chỉ điền effects/items/relationships/quests khi thật sự cần.
+- events chỉ khi sự kiện timeline quan trọng (thường để []).
+- choices: đúng 3 gợi ý ngắn.
+- Chỉ JSON.`;
 
 type DemoGenre = 'fantasy' | 'scifi' | 'noir' | 'postapoc' | 'magic' | 'mecha';
 
@@ -972,23 +972,24 @@ export function _detectDemoGenreForTest(
 }
 
 function normalizeLocations(raw: any[] | undefined, geography: string[]): Location[] {
+  const MAX = 8;
   if (Array.isArray(raw) && raw.length > 0) {
-    return raw.map((loc: any) => ({
+    return raw.slice(0, MAX).map((loc: any) => ({
       id: uuidv4(),
-      name: String(loc.name || 'Địa điểm lạ'),
-      description: String(loc.description || ''),
-      atmosphere: loc.atmosphere ? String(loc.atmosphere) : undefined,
-      connections: Array.isArray(loc.connections) ? loc.connections.map(String) : [],
-      npcs: Array.isArray(loc.npcs) ? loc.npcs.map(String) : [],
-      tags: Array.isArray(loc.tags) ? loc.tags.map(String) : undefined,
+      name: String(loc.name || 'Địa điểm lạ').slice(0, 80),
+      description: String(loc.description || '').slice(0, 280),
+      atmosphere: loc.atmosphere ? String(loc.atmosphere).slice(0, 60) : undefined,
+      connections: Array.isArray(loc.connections) ? loc.connections.map(String).slice(0, 4) : [],
+      npcs: Array.isArray(loc.npcs) ? loc.npcs.map(String).slice(0, 3) : [],
+      tags: Array.isArray(loc.tags) ? loc.tags.map(String).slice(0, 4) : undefined,
     }));
   }
   // Fallback: turn geography strings into basic locations
-  return geography.map((name, i) => ({
+  return geography.slice(0, MAX).map((name, i, arr) => ({
     id: uuidv4(),
-    name,
-    description: `Khu vực ${name} — nơi bạn có thể khám phá và gặp gỡ nhân vật.`,
-    connections: geography.filter((_, j) => j === i - 1 || j === i + 1),
+    name: name.slice(0, 80),
+    description: `Khu vực ${name} — có thể khám phá.`,
+    connections: arr.filter((_, j) => j === i - 1 || j === i + 1).slice(0, 4),
     npcs: [],
     tags: ['region'],
   }));
@@ -1135,26 +1136,40 @@ export async function generateRoleplayResponse(input: RoleplayInput): Promise<Ro
     ? findLocation(input.world, input.player.currentLocationId)
     : getStartingLocation(input.world);
 
+  // Compact GM context — open-world without dumping the whole graph every turn
   const statsLine = formatStatsForContext(input.player.stats);
   const inventoryLine =
     input.player.inventory.length > 0
-      ? input.player.inventory.map((i) => `${i.name} x${i.quantity}`).join(', ')
-      : 'Không có';
-  const checkLine = input.check ? `\nKẾT QUẢ KIỂM TRA: ${input.check.description}` : '';
+      ? input.player.inventory
+          .slice(0, 8)
+          .map((i) => `${i.name}×${i.quantity}`)
+          .join(', ')
+      : '—';
+  const checkLine = input.check ? `\nCHECK: ${input.check.description}` : '';
   const locLine = location
-    ? `\nVỊ TRÍ: ${location.name}\nMô tả: ${location.description}\nKết nối: ${location.connections.join(', ')}\nNPC tại đây: ${location.npcs.join(', ') || 'không rõ'}`
+    ? `\nLOC: ${location.name} | ${location.description.slice(0, 160)} | →${location.connections.slice(0, 4).join(', ')} | NPC:${location.npcs.slice(0, 3).join(', ') || '—'}`
     : '';
   const questLine =
     input.player.questLog?.length > 0
-      ? `\nNHIỆM VỤ: ${input.player.questLog
+      ? `\nQUEST: ${input.player.questLog
+          .slice(0, 4)
           .map((q) => {
             const wq = input.world.quests.find((x) => x.id === q.questId);
-            return `${wq?.title || q.questId} [${q.status}] ${q.progress || ''}`;
+            return `${wq?.title || q.questId}[${q.status}]`;
           })
           .join('; ')}`
-      : `\nNHIỆM VỤ THẾ GIỚI: ${input.world.quests.map((q) => q.title).join(', ')}`;
+      : '';
+  const memory =
+    input.player.sceneSummaries?.length > 0
+      ? `\nMEM: ${input.player.sceneSummaries.slice(-3).join(' | ')}`
+      : '';
 
-  const context = `THẾ GIỚI: ${input.world.name}\nMô tả: ${input.world.description}\nĐịa lý: ${input.world.geography.join(', ')}\nPhe phái: ${input.world.factions.map((f) => f.name).join(', ')}\nHệ thống sức mạnh: ${input.world.magicSystem || 'Không'}\nCông nghệ: ${input.world.technologyLevel || 'Bình thường'}${locLine}\n\nNHÂN VẬT NGƯỜI CHƠI: ${input.player.name} (${input.player.role})\nTiểu sử: ${input.player.backstory}\nCảnh hiện tại: ${input.player.currentScene}\nChỉ số: ${statsLine}\nTúi đồ: ${inventoryLine}${questLine}${checkLine}\n\nHÀNH ĐỘNG: ${input.action}`;
+  const context = `WORLD: ${input.world.name} — ${(input.world.description || '').slice(0, 200)}\nFACTIONS: ${input.world.factions
+    .slice(0, 4)
+    .map((f) => f.name)
+    .join(
+      ', ',
+    )}${locLine}\nPC: ${input.player.name} (${input.player.role}) ${statsLine}\nINV: ${inventoryLine}${questLine}${memory}${checkLine}\nACT: ${input.action}`;
 
   const content = await callAi([
     { role: 'system', content: ROLEPLAY_SYSTEM_PROMPT },

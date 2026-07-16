@@ -59,7 +59,7 @@ export const api = {
   deletePlayer: (id: string) => request<{ ok: boolean }>(`/players/${id}`, { method: 'DELETE' }),
 
   // Roleplay
-  act: (playerId: string, action: string, autosave = true) =>
+  act: (playerId: string, action: string, autosave = false) =>
     request<RoleplayResult & { player?: Player; discovery?: DiscoveryInfo }>(
       `/players/${playerId}/act`,
       {
@@ -72,7 +72,7 @@ export const api = {
     request<{ ok: boolean }>(`/players/${playerId}/history`, { method: 'DELETE' }),
 
   // Travel
-  travel: (playerId: string, locationId: string, autosave = true) =>
+  travel: (playerId: string, locationId: string, autosave = false) =>
     request<
       RoleplayResult & {
         player: Player;

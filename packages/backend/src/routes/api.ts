@@ -50,7 +50,13 @@ import {
   importWorldPack,
   ensurePlayerArrays,
   discoveryProgress,
+  pushSceneSummary,
+  trimPlayer,
+  capTimeline,
+  slimWorld,
+  persistPlayer,
 } from '../services/player-state';
+import { LIMITS } from '../config/limits';
 
 const router = Router();
 
@@ -97,19 +103,41 @@ router.post(
       'api',
       `POST /worlds: source=${src} story="${story.slice(0, 60)}..." (${story.length} chars)`,
     );
-    const world = await generateWorldFromStory(story, src);
+    const world = slimWorld(await generateWorldFromStory(story, src));
     saveWorld(world);
     info(
       'api',
-      `POST /worlds → 200: world="${world.name}" id=${world.id} locations=${world.locations?.length || 0}`,
+      `POST /worlds → 201: world="${world.name}" id=${world.id} locations=${world.locations?.length || 0}`,
     );
     res.status(201).json(world);
   }),
 );
 
 router.get('/worlds', (_req, res) => {
-  const worlds = listWorlds();
-  info('api', `GET /worlds → 200: ${worlds.length} worlds`);
+  // Lightweight list projection (full detail via GET /worlds/:id)
+  const worlds = listWorlds().map((w) => ({
+    id: w.id,
+    name: w.name,
+    description: (w.description || '').slice(0, 220),
+    sourceType: w.sourceType,
+    geography: (w.geography || []).slice(0, 8),
+    locations: (w.locations || []).slice(0, 8).map((l) => ({
+      id: l.id,
+      name: l.name,
+    })),
+    characters: (w.characters || []).slice(0, 4).map((c) => ({
+      id: c.id,
+      name: c.name,
+      role: c.role,
+    })),
+    quests: (w.quests || []).slice(0, 4).map((q) => ({
+      id: q.id,
+      title: q.title,
+    })),
+    factions: (w.factions || []).slice(0, 4).map((f) => ({ name: f.name })),
+    createdAt: w.createdAt,
+  }));
+  info('api', `GET /worlds → 200: ${worlds.length} worlds (light list)`);
   res.json(worlds);
 });
 
@@ -298,7 +326,10 @@ router.post('/players/:id/act', async (req, res, next) => {
     const world = getWorld(player.worldId);
     if (!world) throw HttpError.notFound('World not found');
 
-    const action = requireString(req.body?.action, 'action', { min: 1, max: 2000 });
+    const action = requireString(req.body?.action, 'action', {
+      min: 1,
+      max: LIMITS.actionMax,
+    });
 
     info(
       'api',
@@ -314,9 +345,23 @@ router.post('/players/:id/act', async (req, res, next) => {
       info('api', `Skill check: ${check.description}`);
     }
 
-    const history = getChatHistory(player.id, 20)
+    // Lightweight AI context: few recent non-system messages, scene only if JSON
+    const history = getChatHistory(player.id, LIMITS.chatHistoryAi)
       .filter((m) => m.role !== 'system')
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      .map((m) => {
+        let content = m.content;
+        if (m.role === 'assistant' && content.startsWith('{')) {
+          try {
+            content = JSON.parse(content).scene || content;
+          } catch {
+            /* keep */
+          }
+        }
+        return {
+          role: m.role as 'user' | 'assistant',
+          content: content.slice(0, 280),
+        };
+      });
 
     const result = await generateRoleplayResponse({
       world,
@@ -408,48 +453,37 @@ router.post('/players/:id/act', async (req, res, next) => {
       }
     }
 
-    player.currentScene = result.scene;
-    ensurePlayerArrays(player);
+    player.currentScene = result.scene.slice(0, LIMITS.descriptionMax);
+    pushSceneSummary(player, result.scene);
+    // Journal only on discovery moves — not every act (keeps payload light)
+    trimPlayer(player);
+    persistPlayer(player);
 
-    // Add scene summary (keep last 10)
-    const summary = result.scene.slice(0, 200);
-    player.sceneSummaries.push(summary);
-    if (player.sceneSummaries.length > 10) {
-      player.sceneSummaries = player.sceneSummaries.slice(-10);
-    }
-    appendJournal(player, summary, 'act', world);
-
-    savePlayer(player);
-
-    addChatMessage(player.id, { role: 'user', content: action });
+    // Store plain text (not full JSON blob) to keep chat DB small
+    addChatMessage(player.id, { role: 'user', content: action.slice(0, LIMITS.actionMax) });
     addChatMessage(player.id, {
       role: 'assistant',
-      content: JSON.stringify({
-        scene: result.scene,
-        events: result.events,
-        choices: result.choices,
-        check: result.check,
-        xpGained: result.xpGained,
-      }),
+      content: result.scene.slice(0, LIMITS.descriptionMax),
     });
 
     if (result.events && result.events.length > 0) {
-      for (const ev of result.events) {
+      for (const ev of result.events.slice(0, 2)) {
         world.timeline.push({
           id: crypto.randomUUID(),
           year: new Date().getFullYear(),
-          title: ev,
-          description: `Sự kiện do ${player.name} tạo ra qua hành động: ${action}`,
+          title: String(ev).slice(0, 120),
+          description: `Sự kiện do ${player.name}: ${action.slice(0, 80)}`,
           important: true,
         });
       }
       world.timeline.sort((a, b) => a.year - b.year);
+      capTimeline(world);
       saveWorld(world);
-      info('api', `POST /players/${req.params.id}/act: ${result.events.length} events added`);
+      info('api', `POST /players/${req.params.id}/act: events added (capped)`);
     }
 
-    // Rolling autosave (opt-out: autosave=false)
-    if (req.body?.autosave !== false) {
+    // Autosave is opt-in + throttled (lightweight by default)
+    if (req.body?.autosave === true) {
       writeAutosave(player, world);
     }
 
@@ -465,7 +499,7 @@ router.post('/players/:id/act', async (req, res, next) => {
 });
 
 router.get('/players/:id/history', (req, res) => {
-  const history = getChatHistory(req.params.id, 50);
+  const history = getChatHistory(req.params.id, LIMITS.chatHistoryClient);
   info('api', `GET /players/${req.params.id}/history → 200: ${history.length} messages`);
   res.json(history);
 });
@@ -507,28 +541,29 @@ router.post('/players/:id/travel', (req, res, next) => {
     }
     const firstVisit = markVisited(player, result.location.id);
     player.currentLocationId = result.location.id;
-    player.currentScene = result.scene;
-    ensurePlayerArrays(player);
-    player.sceneSummaries.push(result.scene.slice(0, 200));
-    if (player.sceneSummaries.length > 10) {
-      player.sceneSummaries = player.sceneSummaries.slice(-10);
+    player.currentScene = result.scene.slice(0, LIMITS.descriptionMax);
+    pushSceneSummary(player, result.scene);
+    // Journal only on first visit (avoid spam on re-travel)
+    if (firstVisit) {
+      appendJournal(
+        player,
+        `Khám phá ${result.location.name}${result.location.atmosphere ? ` — ${result.location.atmosphere}` : ''}`,
+        'discover',
+        world,
+      );
     }
-    appendJournal(
-      player,
-      firstVisit
-        ? `Lần đầu đặt chân tới ${result.location.name}. ${result.location.atmosphere || ''}`
-        : `Trở lại ${result.location.name}.`,
-      firstVisit ? 'discover' : 'travel',
-      world,
-    );
-    savePlayer(player);
+    persistPlayer(player);
     addChatMessage(player.id, {
       role: 'user',
-      content: `Di chuyển tới ${result.location.name}`,
+      content: `Đi tới ${result.location.name}`,
     });
-    addChatMessage(player.id, { role: 'assistant', content: result.scene });
-    if (req.body?.autosave !== false) {
-      writeAutosave(player, world);
+    addChatMessage(player.id, {
+      role: 'assistant',
+      content: result.scene.slice(0, LIMITS.descriptionMax),
+    });
+    // Light autosave: only on discovery or explicit opt-in
+    if (firstVisit || req.body?.autosave === true) {
+      writeAutosave(player, world, firstVisit);
     }
     info('api', `POST /players/${req.params.id}/travel → 200: ${result.location.name}`);
     res.json({
@@ -831,9 +866,9 @@ router.post('/players/:id/saves', (req, res) => {
     worldId: world.id,
     playerId: player.id,
     createdAt: Date.now(),
-    worldData: world,
+    worldData: slimWorld(world),
     playerData: player,
-    chatHistory: getChatHistory(player.id, 200),
+    chatHistory: getChatHistory(player.id, LIMITS.manualSaveChat),
   };
   saveSnapshot(snapshot);
   info(

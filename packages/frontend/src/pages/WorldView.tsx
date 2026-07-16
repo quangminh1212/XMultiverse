@@ -439,17 +439,10 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
             </div>
 
             {activeTab === 'map' && (
-              <LocationMap
-                locations={world.locations || []}
-                currentLocationId={player.currentLocationId}
-                visitedLocations={player.visitedLocations}
-                discoveryPercent={discoveryPercent}
-                onTravel={handleTravel}
-                onExplore={() => runAction('Khám phá xung quanh')}
-                onTalkNpc={(npc) => runAction(`Nói chuyện với ${npc}`)}
-                canTravel
-                loading={loading}
-              />
+              <p style={{ color: 'var(--muted)', fontSize: '0.88rem', marginBottom: 8 }}>
+                Bản đồ hiển thị phía trên — khám phá {discoveryPercent}% · journal tự ghi khi phát
+                hiện địa điểm mới (nhẹ, không spam).
+              </p>
             )}
             {activeTab === 'stats' && player.stats && <StatsPanel stats={player.stats} />}
             {activeTab === 'inventory' && <InventoryPanel player={player} onUpdate={setPlayer} />}

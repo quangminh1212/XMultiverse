@@ -9,7 +9,8 @@ import {
 } from './worldgen';
 import type { Player, World } from '../types';
 import { createDefaultStats } from './dice';
-import { exportWorldPack, importWorldPack } from './player-state';
+import { exportWorldPack, importWorldPack, slimWorld } from './player-state';
+import { LIMITS } from '../config/limits';
 
 process.env.DEMO_MODE = 'true';
 
@@ -59,6 +60,28 @@ describe('worldgen open world', () => {
     expect(imported.name).toBe(world.name);
     expect(imported.locations.length).toBe(world.locations.length);
     expect(imported.locations[0].id).not.toBe(world.locations[0].id);
+  });
+
+  it('slimWorld enforces lightweight caps', () => {
+    const fat = {
+      ...world,
+      locations: [
+        ...world.locations,
+        ...Array.from({ length: 20 }, (_, i) => ({
+          id: `extra-${i}`,
+          name: `Extra ${i}`,
+          description: 'x'.repeat(500),
+          connections: ['a', 'b', 'c', 'd', 'e'],
+          npcs: ['1', '2', '3', '4'],
+          tags: ['t1', 't2', 't3', 't4', 't5'],
+        })),
+      ],
+      storyInput: 's'.repeat(5000),
+    };
+    const slim = slimWorld(fat as typeof world);
+    expect(slim.locations.length).toBeLessThanOrEqual(LIMITS.locationsMax);
+    expect(slim.storyInput.length).toBeLessThanOrEqual(LIMITS.storyInputMax);
+    expect(slim.locations[0].description.length).toBeLessThanOrEqual(280);
   });
 
   it('starting location prefers city/safe tags', () => {
