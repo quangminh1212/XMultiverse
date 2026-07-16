@@ -48,7 +48,15 @@ export function CharacterList({ characters }: { characters: Character[] }) {
   );
 }
 
-export function QuestList({ quests, questLog }: { quests: Quest[]; questLog?: QuestProgress[] }) {
+export function QuestList({
+  quests,
+  questLog,
+  onStatusChange,
+}: {
+  quests: Quest[];
+  questLog?: QuestProgress[];
+  onStatusChange?: (questId: string, status: 'active' | 'completed' | 'failed') => void;
+}) {
   return (
     <div className="card">
       <div className="section-label">Nhiệm vụ</div>
@@ -74,6 +82,36 @@ export function QuestList({ quests, questLog }: { quests: Quest[]; questLog?: Qu
                 Tiến độ: {progress.progress}
               </p>
             )}
+            {onStatusChange && status !== 'completed' && (
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {status !== 'active' && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    onClick={() => onStatusChange(q.id, 'active')}
+                  >
+                    Nhận / Active
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                  onClick={() => onStatusChange(q.id, 'completed')}
+                >
+                  ✓ Hoàn thành
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                  onClick={() => onStatusChange(q.id, 'failed')}
+                >
+                  Thất bại
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
@@ -84,13 +122,21 @@ export function QuestList({ quests, questLog }: { quests: Quest[]; questLog?: Qu
 export function LocationMap({
   locations,
   currentLocationId,
+  visitedLocations,
+  discoveryPercent,
   onTravel,
+  onExplore,
+  onTalkNpc,
   canTravel,
   loading,
 }: {
   locations: Location[];
   currentLocationId?: string;
+  visitedLocations?: string[];
+  discoveryPercent?: number;
   onTravel?: (locationId: string) => void;
+  onExplore?: () => void;
+  onTalkNpc?: (npc: string) => void;
   canTravel?: boolean;
   loading?: boolean;
 }) {
@@ -105,20 +151,51 @@ export function LocationMap({
   }
 
   const current = locations.find((l) => l.id === currentLocationId);
+  const visited = new Set(visitedLocations || []);
 
   return (
     <div className="card">
       <div className="section-label">Thế giới mở</div>
       <h2>🗺️ Bản đồ địa điểm</h2>
-      {current && (
-        <p style={{ color: 'var(--accent3)', fontSize: '0.9rem', marginBottom: 16 }}>
-          Đang ở: <strong>{current.name}</strong>
-          {current.atmosphere ? ` — ${current.atmosphere}` : ''}
+      {typeof discoveryPercent === 'number' && (
+        <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: 8 }}>
+          Khám phá: <strong style={{ color: 'var(--accent3)' }}>{discoveryPercent}%</strong> (
+          {visited.size}/{locations.length} địa điểm)
         </p>
+      )}
+      {current && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: 'var(--accent3)', fontSize: '0.9rem', marginBottom: 8 }}>
+            Đang ở: <strong>{current.name}</strong>
+            {current.atmosphere ? ` — ${current.atmosphere}` : ''}
+          </p>
+          {canTravel && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {onExplore && (
+                <button type="button" className="secondary" disabled={loading} onClick={onExplore}>
+                  🔍 Khám phá nơi này
+                </button>
+              )}
+              {onTalkNpc &&
+                current.npcs?.slice(0, 2).map((npc) => (
+                  <button
+                    key={npc}
+                    type="button"
+                    className="ghost"
+                    disabled={loading}
+                    onClick={() => onTalkNpc(npc)}
+                  >
+                    💬 Nói với {npc}
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
       )}
       <div className="location-grid">
         {locations.map((loc) => {
           const isHere = loc.id === currentLocationId;
+          const isVisited = visited.has(loc.id);
           const reachable =
             !current ||
             isHere ||
@@ -128,11 +205,12 @@ export function LocationMap({
           return (
             <div
               key={loc.id}
-              className={`location-card ${isHere ? 'here' : ''} ${reachable ? 'reachable' : 'locked'}`}
+              className={`location-card ${isHere ? 'here' : ''} ${reachable ? 'reachable' : 'locked'} ${isVisited ? 'visited' : ''}`}
             >
               <div className="location-card-header">
                 <h3>{loc.name}</h3>
                 {isHere && <span className="badge">Bạn ở đây</span>}
+                {!isHere && isVisited && <span className="badge">Đã khám phá</span>}
               </div>
               <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: 8 }}>
                 {loc.description}

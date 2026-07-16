@@ -51,10 +51,11 @@ const PRESETS: { label: string; type: SourceType; icon: string; story: string }[
 ];
 
 export function HomePage() {
-  const { worlds, loading, error, createWorld, removeWorld } = useWorlds();
+  const { worlds, loading, error, createWorld, removeWorld, importWorld } = useWorlds();
   const [storyInput, setStoryInput] = useState('');
   const [sourceType, setSourceType] = useState<SourceType>('story');
   const [currentWorld, setCurrentWorld] = useState<World | null>(null);
+  const [query, setQuery] = useState('');
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -77,6 +78,29 @@ export function HomePage() {
     if (!confirm('Xóa thế giới này? Hành động không thể hoàn tác.')) return;
     await removeWorld(id);
   }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const world = await importWorld(file);
+      setCurrentWorld(world);
+    } catch {
+      /* error in hook */
+    }
+    e.target.value = '';
+  }
+
+  const filtered = worlds.filter((w) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      w.name.toLowerCase().includes(q) ||
+      w.description?.toLowerCase().includes(q) ||
+      w.sourceType?.toLowerCase().includes(q) ||
+      w.storyInput?.toLowerCase().includes(q)
+    );
+  });
 
   if (currentWorld) {
     return (
@@ -139,11 +163,31 @@ export function HomePage() {
               onChange={(e) => setStoryInput(e.target.value)}
               required
             />
-            <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div
+              style={{
+                marginTop: 16,
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
               <button type="submit" disabled={loading || !storyInput.trim()} className="lg">
                 {loading && <span className="spinner" />}
                 {loading ? 'Đang kiến tạo...' : 'Kiến tạo thế giới'}
               </button>
+              <label
+                className="secondary"
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'inline-block',
+                }}
+              >
+                📥 Import world JSON
+                <input type="file" accept="application/json,.json" hidden onChange={handleImport} />
+              </label>
               <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
                 {storyInput.trim().length > 0
                   ? `${storyInput.trim().length} ký tự · ${sourceType}`
@@ -158,11 +202,18 @@ export function HomePage() {
         <section className="section container" id="worlds">
           <div className="section-label">Thế giới đã tạo</div>
           <h2 className="section-title">Your Multiverse</h2>
-          <p className="section-subtitle" style={{ marginBottom: 32 }}>
-            {worlds.length} thế giới đang chờ bạn bước vào.
+          <p className="section-subtitle" style={{ marginBottom: 16 }}>
+            {worlds.length} thế giới · hiển thị {filtered.length}
           </p>
+          <input
+            type="search"
+            placeholder="Tìm theo tên, mô tả, sourceType..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{ maxWidth: 420, marginBottom: 24 }}
+          />
           <div className="world-list">
-            {worlds.map((w) => (
+            {filtered.map((w) => (
               <div key={w.id} className="world-card-wrap">
                 <WorldCard world={w} onClick={loadWorld} />
                 <button

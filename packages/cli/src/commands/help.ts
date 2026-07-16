@@ -29,6 +29,9 @@ THẾ GIỚI:
                                     Tạo thế giới mở từ cốt truyện / phim
   xmv world list                    Liệt kê tất cả thế giới
   xmv world get --id <worldId>      Xem chi tiết (locations, factions, quests)
+  xmv world export --id <worldId> [--out file.json]
+                                    Export world pack (chia sẻ / backup)
+  xmv world import --file pack.json Import world pack (ID mới)
 
 NHÂN VẬT:
   xmv player create --world <id> --name "..." --role "..." [--backstory "..."] [--faction "..."]

@@ -10,6 +10,9 @@ import type {
   Location,
   SourceType,
   QuestProgress,
+  WorldPack,
+  JournalEntry,
+  DiscoveryInfo,
 } from '../types';
 
 const API_BASE = '/api';
@@ -37,6 +40,9 @@ export const api = {
     }),
   deleteWorld: (id: string) => request<{ ok: boolean }>(`/worlds/${id}`, { method: 'DELETE' }),
   listLocations: (worldId: string) => request<Location[]>(`/worlds/${worldId}/locations`),
+  exportWorld: (id: string) => request<WorldPack>(`/worlds/${id}/export`),
+  importWorld: (pack: WorldPack | World) =>
+    request<World>('/worlds/import', { method: 'POST', body: JSON.stringify(pack) }),
   addTimelineEvent: (
     worldId: string,
     event: { year: string; title: string; description: string; important: boolean },
@@ -53,25 +59,42 @@ export const api = {
   deletePlayer: (id: string) => request<{ ok: boolean }>(`/players/${id}`, { method: 'DELETE' }),
 
   // Roleplay
-  act: (playerId: string, action: string) =>
-    request<RoleplayResult & { player?: Player }>(`/players/${playerId}/act`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    }),
+  act: (playerId: string, action: string, autosave = true) =>
+    request<RoleplayResult & { player?: Player; discovery?: DiscoveryInfo }>(
+      `/players/${playerId}/act`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ action, autosave }),
+      },
+    ),
   getHistory: (playerId: string) => request<ChatMessage[]>(`/players/${playerId}/history`),
   clearHistory: (playerId: string) =>
     request<{ ok: boolean }>(`/players/${playerId}/history`, { method: 'DELETE' }),
 
   // Travel
-  travel: (playerId: string, locationId: string) =>
-    request<RoleplayResult & { player: Player; location: Location }>(
-      `/players/${playerId}/travel`,
-      { method: 'POST', body: JSON.stringify({ locationId }) },
-    ),
+  travel: (playerId: string, locationId: string, autosave = true) =>
+    request<
+      RoleplayResult & {
+        player: Player;
+        location: Location;
+        firstVisit?: boolean;
+        discovery?: DiscoveryInfo;
+      }
+    >(`/players/${playerId}/travel`, {
+      method: 'POST',
+      body: JSON.stringify({ locationId, autosave }),
+    }),
   getPlayerLocation: (playerId: string) =>
     request<{ location: Location | null; currentLocationId?: string }>(
       `/players/${playerId}/location`,
     ),
+  getDiscovery: (playerId: string) => request<DiscoveryInfo>(`/players/${playerId}/discovery`),
+  getJournal: (playerId: string) => request<JournalEntry[]>(`/players/${playerId}/journal`),
+  addJournal: (playerId: string, text: string) =>
+    request<JournalEntry>(`/players/${playerId}/journal`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
 
   // Quests
   getQuests: (playerId: string) => request<QuestProgress[]>(`/players/${playerId}/quests`),

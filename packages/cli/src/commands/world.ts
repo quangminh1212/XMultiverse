@@ -1,3 +1,4 @@
+import { writeFileSync, readFileSync } from 'fs';
 import { api, type World } from '../client.js';
 import { emit, printData, fatal, step, stepDone, stepFail, info, beginSteps } from '../feedback.js';
 import { requireArg } from '../args.js';
@@ -158,6 +159,66 @@ export async function cmdWorldGet(flags: Record<string, string | boolean>): Prom
     fatal('world-get', err.message, undefined, {
       missing: [`Không tìm thấy thế giới ID: ${id}`],
       nextSteps: ['Xem danh sách: xmv world list', 'Tạo mới: xmv world create --story "..."'],
+    });
+  }
+}
+
+/** xmv world export --id <worldId> [--out pack.json] */
+export async function cmdWorldExport(flags: Record<string, string | boolean>): Promise<void> {
+  const id = requireArg(flags, 'id');
+  const out =
+    typeof flags.out === 'string'
+      ? flags.out
+      : typeof flags.file === 'string'
+        ? flags.file
+        : `world-${id.slice(0, 8)}.xmv.json`;
+  beginSteps(2);
+  const s0 = step('Export world pack');
+  try {
+    const pack = await api.exportWorld(id);
+    stepDone(s0);
+    writeFileSync(out, JSON.stringify(pack, null, 2), 'utf8');
+    const s1 = step(`Ghi file ${out}`);
+    stepDone(s1);
+    emit(
+      'world-export',
+      true,
+      `Đã export "${pack.world.name}" → ${out}`,
+      { file: out, id },
+      {
+        nextSteps: [`Import: xmv world import --file ${out}`],
+      },
+    );
+    printData({ file: out, worldId: pack.world.id, name: pack.world.name });
+  } catch (err: any) {
+    stepFail(s0);
+    fatal('world-export', err.message);
+  }
+}
+
+/** xmv world import --file pack.json */
+export async function cmdWorldImport(flags: Record<string, string | boolean>): Promise<void> {
+  const file = requireArg(flags, 'file');
+  beginSteps(2);
+  const s0 = step(`Đọc ${file}`);
+  try {
+    const raw = readFileSync(file, 'utf8');
+    const pack = JSON.parse(raw);
+    stepDone(s0);
+    const s1 = step('Import world pack');
+    const world = await api.importWorld(pack);
+    stepDone(s1);
+    emit('world-import', true, `Đã import "${world.name}" (ID: ${world.id})`, world, {
+      nextSteps: [
+        `Tạo NV: xmv player create --world ${world.id} --name "..." --role "..."`,
+        `Xem: xmv world get --id ${world.id}`,
+      ],
+    });
+    printData({ id: world.id, name: world.name, locations: world.locations?.length || 0 });
+  } catch (err: any) {
+    stepFail(s0);
+    fatal('world-import', err.message, undefined, {
+      nextSteps: ['Kiểm tra file JSON format xmultiverse-world-v1'],
     });
   }
 }

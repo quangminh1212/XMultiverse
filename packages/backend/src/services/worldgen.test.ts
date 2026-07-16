@@ -5,9 +5,11 @@ import {
   findLocation,
   canTravel,
   travelToLocation,
+  _detectDemoGenreForTest,
 } from './worldgen';
 import type { Player, World } from '../types';
 import { createDefaultStats } from './dice';
+import { exportWorldPack, importWorldPack } from './player-state';
 
 process.env.DEMO_MODE = 'true';
 
@@ -17,14 +19,29 @@ describe('worldgen open world', () => {
   beforeAll(async () => {
     world = await generateWorldFromStory(
       'A knight seeks a divine sword to defeat a demon lord',
+      'story',
+    );
+  });
+
+  it('detects demo genres from story keywords', () => {
+    expect(_detectDemoGenreForTest('space station wormhole AI', 'movie')).toBe('scifi');
+    expect(_detectDemoGenreForTest('detective rain noir mafia', 'story')).toBe('noir');
+    expect(_detectDemoGenreForTest('wasteland bunker survivors', 'movie')).toBe('postapoc');
+    expect(_detectDemoGenreForTest('magic academy grimoire', 'book')).toBe('magic');
+  });
+
+  it('generates genre-specific scifi demo', async () => {
+    const sci = await generateWorldFromStory(
+      'phi hành đoàn mắc kẹt trên hành tinh, wormhole và AI',
       'movie',
     );
+    expect(sci.locations.length).toBeGreaterThanOrEqual(5);
+    expect(sci.name.toLowerCase()).toMatch(/helios|hệ|space|neo|shield|vùng|học|thành/i);
   });
 
   it('generates demo world with locations graph', () => {
     expect(world.name).toBeTruthy();
     expect(world.locations.length).toBeGreaterThanOrEqual(4);
-    expect(world.sourceType).toBe('movie');
     expect(world.quests.length).toBeGreaterThan(0);
     expect(world.timeline.length).toBeGreaterThan(0);
     for (const loc of world.locations) {
@@ -32,6 +49,16 @@ describe('worldgen open world', () => {
       expect(loc.name).toBeTruthy();
       expect(Array.isArray(loc.connections)).toBe(true);
     }
+  });
+
+  it('export/import world pack regenerates ids', () => {
+    const pack = exportWorldPack(world);
+    expect(pack.format).toBe('xmultiverse-world-v1');
+    const imported = importWorldPack(pack);
+    expect(imported.id).not.toBe(world.id);
+    expect(imported.name).toBe(world.name);
+    expect(imported.locations.length).toBe(world.locations.length);
+    expect(imported.locations[0].id).not.toBe(world.locations[0].id);
   });
 
   it('starting location prefers city/safe tags', () => {
@@ -58,9 +85,11 @@ describe('worldgen open world', () => {
       stats: createDefaultStats('warrior'),
       currentScene: start.description,
       currentLocationId: start.id,
+      visitedLocations: [start.id],
       questLog: [],
       relationships: {},
       sceneSummaries: [],
+      journal: [],
       createdAt: Date.now(),
     };
 

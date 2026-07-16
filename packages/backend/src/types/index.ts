@@ -121,6 +121,16 @@ export interface ItemEffect {
   duration?: 'instant' | 'permanent' | 'temporary';
 }
 
+/** Player journal note (exploration diary). */
+export interface JournalEntry {
+  id: string;
+  at: number;
+  locationId?: string;
+  locationName?: string;
+  text: string;
+  source: 'travel' | 'act' | 'manual' | 'discover';
+}
+
 export interface Player {
   id: string;
   worldId: string;
@@ -133,13 +143,25 @@ export interface Player {
   currentScene: string;
   /** Current location id within the world's location graph. */
   currentLocationId?: string;
+  /** Location ids the player has discovered. */
+  visitedLocations: string[];
   /** Active/completed quests tracked for this player. */
   questLog: QuestProgress[];
   /** NPCs this player has interacted with and their disposition. */
   relationships: Record<string, NPCDisposition>;
   /** Summarized scene history for AI context (from ai_rpg scene summarization). */
   sceneSummaries: string[];
+  /** Exploration diary. */
+  journal: JournalEntry[];
   createdAt: number;
+}
+
+/** Portable world pack for export/import (shareable JSON). */
+export interface WorldPack {
+  format: 'xmultiverse-world-v1';
+  exportedAt: number;
+  version: string;
+  world: World;
 }
 
 export type ChatRole = 'system' | 'user' | 'assistant';

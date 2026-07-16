@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Discovery map**: track visited locations + % explored.
+- **Journal**: auto entries on travel/act + manual notes.
+- **World export/import** (JSON pack `xmultiverse-world-v1`) — API, UI, CLI.
+- **Genre-aware demo worlds**: scifi, noir, post-apoc, magic, mecha, fantasy.
+- **Autosave** after act/travel (rolling `Autosave` snapshot).
+- Quest status actions (active/completed/failed) in UI.
+- Homepage world search + import JSON; map shortcuts explore / talk NPC.
+
 ## [1.1.0] - 2026-07-16
 
 ### Added

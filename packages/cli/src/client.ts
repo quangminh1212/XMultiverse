@@ -166,6 +166,12 @@ export const api = {
     request<World>('POST', '/api/worlds', { story, sourceType }),
   listLocations: (worldId: string) =>
     request<Location[]>('GET', `/api/worlds/${worldId}/locations`),
+  exportWorld: (id: string) =>
+    request<{ format: string; exportedAt: number; version: string; world: World }>(
+      'GET',
+      `/api/worlds/${id}/export`,
+    ),
+  importWorld: (pack: unknown) => request<World>('POST', '/api/worlds/import', pack),
   addEvent: (
     worldId: string,
     event: { year: number; title: string; description: string; important: boolean },

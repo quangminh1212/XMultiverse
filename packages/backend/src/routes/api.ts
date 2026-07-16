@@ -42,6 +42,15 @@ import {
   parseQuestStatus,
   asyncHandler,
 } from '../middleware/validate';
+import {
+  markVisited,
+  appendJournal,
+  writeAutosave,
+  exportWorldPack,
+  importWorldPack,
+  ensurePlayerArrays,
+  discoveryProgress,
+} from '../services/player-state';
 
 const router = Router();
 
@@ -127,6 +136,35 @@ router.delete('/worlds/:id', (req, res, next) => {
   }
 });
 
+router.get('/worlds/:id/export', (req, res, next) => {
+  try {
+    const world = getWorld(req.params.id);
+    if (!world) throw HttpError.notFound('World not found');
+    const pack = exportWorldPack(world);
+    info('api', `GET /worlds/${req.params.id}/export → pack "${world.name}"`);
+    res.json(pack);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/worlds/import', (req, res, next) => {
+  try {
+    const body = req.body;
+    if (!body || (!body.world && !body.name)) {
+      throw HttpError.badRequest('Body must be a world pack { format, world } or a World object');
+    }
+    const world = importWorldPack(
+      body.format === 'xmultiverse-world-v1' || body.world ? body : { world: body },
+    );
+    info('api', `POST /worlds/import → 201 "${world.name}" id=${world.id}`);
+    res.status(201).json(world);
+  } catch (err: any) {
+    if (err instanceof HttpError) return next(err);
+    next(HttpError.badRequest(err.message || 'Invalid world pack'));
+  }
+});
+
 router.post('/worlds/:id/events', (req, res, next) => {
   try {
     const world = getWorld(req.params.id);
@@ -181,6 +219,7 @@ router.post('/worlds/:id/players', (req, res, next) => {
         ? `${startLoc.description} Bạn đang ở ${startLoc.name}.`
         : world.description,
       currentLocationId: startLoc?.id,
+      visitedLocations: startLoc ? [startLoc.id] : [],
       questLog: (world.quests || []).slice(0, 2).map((q): QuestProgress => ({
         questId: q.id,
         status: 'active',
@@ -188,6 +227,18 @@ router.post('/worlds/:id/players', (req, res, next) => {
       })),
       relationships: {},
       sceneSummaries: [],
+      journal: startLoc
+        ? [
+            {
+              id: crypto.randomUUID(),
+              at: Date.now(),
+              locationId: startLoc.id,
+              locationName: startLoc.name,
+              text: `Bước chân đầu tiên tại ${startLoc.name}.`,
+              source: 'discover',
+            },
+          ]
+        : [],
       createdAt: Date.now(),
     };
     savePlayer(player);
@@ -349,10 +400,16 @@ router.post('/players/:id/act', async (req, res, next) => {
     // Location move from roleplay
     if (result.movedToLocationId) {
       const dest = findLocation(world, result.movedToLocationId);
-      if (dest) player.currentLocationId = dest.id;
+      if (dest) {
+        player.currentLocationId = dest.id;
+        if (markVisited(player, dest.id)) {
+          appendJournal(player, `Khám phá địa điểm mới: ${dest.name}.`, 'discover', world);
+        }
+      }
     }
 
     player.currentScene = result.scene;
+    ensurePlayerArrays(player);
 
     // Add scene summary (keep last 10)
     const summary = result.scene.slice(0, 200);
@@ -360,6 +417,7 @@ router.post('/players/:id/act', async (req, res, next) => {
     if (player.sceneSummaries.length > 10) {
       player.sceneSummaries = player.sceneSummaries.slice(-10);
     }
+    appendJournal(player, summary, 'act', world);
 
     savePlayer(player);
 
@@ -390,8 +448,17 @@ router.post('/players/:id/act', async (req, res, next) => {
       info('api', `POST /players/${req.params.id}/act: ${result.events.length} events added`);
     }
 
+    // Rolling autosave (opt-out: autosave=false)
+    if (req.body?.autosave !== false) {
+      writeAutosave(player, world);
+    }
+
     info('api', `POST /players/${req.params.id}/act → 200: ${result.choices.length} choices`);
-    res.json({ ...result, player });
+    res.json({
+      ...result,
+      player,
+      discovery: discoveryProgress(player, world),
+    });
   } catch (err) {
     next(err);
   }
@@ -438,18 +505,31 @@ router.post('/players/:id/travel', (req, res, next) => {
     } catch (e: any) {
       throw HttpError.badRequest(e.message || 'Invalid travel');
     }
+    const firstVisit = markVisited(player, result.location.id);
     player.currentLocationId = result.location.id;
     player.currentScene = result.scene;
+    ensurePlayerArrays(player);
     player.sceneSummaries.push(result.scene.slice(0, 200));
     if (player.sceneSummaries.length > 10) {
       player.sceneSummaries = player.sceneSummaries.slice(-10);
     }
+    appendJournal(
+      player,
+      firstVisit
+        ? `Lần đầu đặt chân tới ${result.location.name}. ${result.location.atmosphere || ''}`
+        : `Trở lại ${result.location.name}.`,
+      firstVisit ? 'discover' : 'travel',
+      world,
+    );
     savePlayer(player);
     addChatMessage(player.id, {
       role: 'user',
       content: `Di chuyển tới ${result.location.name}`,
     });
     addChatMessage(player.id, { role: 'assistant', content: result.scene });
+    if (req.body?.autosave !== false) {
+      writeAutosave(player, world);
+    }
     info('api', `POST /players/${req.params.id}/travel → 200: ${result.location.name}`);
     res.json({
       scene: result.scene,
@@ -457,6 +537,48 @@ router.post('/players/:id/travel', (req, res, next) => {
       choices: result.choices,
       events: [],
       player,
+      firstVisit,
+      discovery: discoveryProgress(player, world),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/players/:id/journal', (req, res, next) => {
+  try {
+    const player = getPlayer(req.params.id);
+    if (!player) throw HttpError.notFound('Player not found');
+    ensurePlayerArrays(player);
+    res.json(player.journal || []);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/players/:id/journal', (req, res, next) => {
+  try {
+    const player = getPlayer(req.params.id);
+    if (!player) throw HttpError.notFound('Player not found');
+    const world = getWorld(player.worldId);
+    const text = requireString(req.body?.text, 'text', { min: 1, max: 500 });
+    const entry = appendJournal(player, text, 'manual', world || undefined);
+    savePlayer(player);
+    res.status(201).json(entry);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/players/:id/discovery', (req, res, next) => {
+  try {
+    const player = getPlayer(req.params.id);
+    if (!player) throw HttpError.notFound('Player not found');
+    const world = getWorld(player.worldId);
+    if (!world) throw HttpError.notFound('World not found');
+    res.json({
+      ...discoveryProgress(player, world),
+      visitedLocations: player.visitedLocations || [],
     });
   } catch (err) {
     next(err);

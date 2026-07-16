@@ -16,7 +16,7 @@ interface WorldViewProps {
   onBack: () => void;
 }
 
-type Tab = 'stats' | 'inventory' | 'relationships' | 'dice' | 'map' | 'saves';
+type Tab = 'stats' | 'inventory' | 'relationships' | 'dice' | 'map' | 'saves' | 'journal';
 
 export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -137,10 +137,60 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
         { role: 'assistant', content: result.scene },
       ]);
       setActiveTab('map');
+      setSaves(await api.listSaves(player.id));
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function runAction(action: string) {
+    if (!player || !action.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await api.act(player.id, action);
+      setLastResult(result);
+      setHistory((h) => [
+        ...h,
+        { role: 'user', content: action },
+        { role: 'assistant', content: result.scene },
+      ]);
+      if (result.player) setPlayer(result.player);
+      setActionInput('');
+      const updated = await api.getWorld(world.id);
+      onWorldUpdated(updated);
+      setSaves(await api.listSaves(player.id));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleQuestStatus(questId: string, status: 'active' | 'completed' | 'failed') {
+    if (!player) return;
+    try {
+      const log = await api.updateQuest(player.id, questId, status);
+      setPlayer({ ...player, questLog: log });
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleExport() {
+    try {
+      const pack = await api.exportWorld(world.id);
+      const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${world.name.replace(/\s+/g, '-').toLowerCase() || 'world'}.xmv.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.message);
     }
   }
 
@@ -157,6 +207,31 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
       alert('Lỗi: ' + err.message);
     }
   }
+
+  async function addJournalNote() {
+    if (!player) return;
+    const text = prompt('Ghi chú nhật ký:');
+    if (!text?.trim()) return;
+    try {
+      const entry = await api.addJournal(player.id, text.trim());
+      setPlayer({
+        ...player,
+        journal: [...(player.journal || []), entry],
+      });
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  const discoveryPercent =
+    world.locations && world.locations.length > 0 && player
+      ? Math.round(
+          ((player.visitedLocations || []).filter((id) => world.locations!.some((l) => l.id === id))
+            .length /
+            world.locations.length) *
+            100,
+        )
+      : 0;
 
   async function handleLoad(saveId: string) {
     if (!confirm('Load save này? Tiến độ hiện tại sẽ bị ghi đè.')) return;
@@ -231,13 +306,22 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
         <div className="detail-row">
           <strong>⚙️ Công nghệ:</strong> {world.technologyLevel || 'Bình thường'}
         </div>
+        <div style={{ marginTop: 12 }}>
+          <button type="button" className="secondary" onClick={handleExport}>
+            📤 Export world pack
+          </button>
+        </div>
       </div>
 
       {/* Open world map always visible */}
       <LocationMap
         locations={world.locations || []}
         currentLocationId={player?.currentLocationId}
+        visitedLocations={player?.visitedLocations}
+        discoveryPercent={player ? discoveryPercent : undefined}
         onTravel={player ? handleTravel : undefined}
+        onExplore={player ? () => runAction('Khám phá xung quanh') : undefined}
+        onTalkNpc={player ? (npc) => runAction(`Nói chuyện với ${npc}`) : undefined}
         canTravel={!!player}
         loading={loading}
       />
@@ -253,7 +337,11 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
           <Timeline events={world.timeline} />
           <EventForm world={world} onUpdated={onWorldUpdated} />
         </div>
-        <QuestList quests={world.quests} questLog={player?.questLog} />
+        <QuestList
+          quests={world.quests}
+          questLog={player?.questLog}
+          onStatusChange={player ? handleQuestStatus : undefined}
+        />
       </div>
 
       <div className="card">
@@ -325,10 +413,11 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
             <div className="tab-nav">
               {(
                 [
-                  ['map', '🗺️ Map'],
+                  ['map', `🗺️ Map (${discoveryPercent}%)`],
                   ['stats', '📊 Stats'],
                   ['inventory', `🎒 Túi đồ (${player.inventory?.length || 0})`],
                   ['relationships', `🤝 NPCs (${Object.keys(player.relationships || {}).length})`],
+                  ['journal', `📓 Journal (${player.journal?.length || 0})`],
                   ['dice', '🎲 Dice'],
                   ['saves', `💾 Saves (${saves.length})`],
                 ] as [Tab, string][]
@@ -353,7 +442,11 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
               <LocationMap
                 locations={world.locations || []}
                 currentLocationId={player.currentLocationId}
+                visitedLocations={player.visitedLocations}
+                discoveryPercent={discoveryPercent}
                 onTravel={handleTravel}
+                onExplore={() => runAction('Khám phá xung quanh')}
+                onTalkNpc={(npc) => runAction(`Nói chuyện với ${npc}`)}
                 canTravel
                 loading={loading}
               />
@@ -362,6 +455,33 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
             {activeTab === 'inventory' && <InventoryPanel player={player} onUpdate={setPlayer} />}
             {activeTab === 'relationships' && (
               <RelationshipsPanel relationships={player.relationships || {}} />
+            )}
+            {activeTab === 'journal' && (
+              <div className="journal-panel">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={addJournalNote}
+                  style={{ marginBottom: 12 }}
+                >
+                  + Ghi chú
+                </button>
+                {(player.journal || []).length === 0 ? (
+                  <p style={{ color: 'var(--muted)' }}>
+                    Chưa có nhật ký. Du hành và hành động sẽ tự ghi.
+                  </p>
+                ) : (
+                  [...(player.journal || [])].reverse().map((j) => (
+                    <div key={j.id} className="journal-entry">
+                      <div style={{ color: 'var(--muted)', fontSize: '0.78rem', marginBottom: 4 }}>
+                        {new Date(j.at).toLocaleString('vi-VN')}
+                        {j.locationName ? ` · ${j.locationName}` : ''} · {j.source}
+                      </div>
+                      <p>{j.text}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
             {activeTab === 'dice' && <DiceRoller playerId={player.id} />}
             {activeTab === 'saves' && (
@@ -406,7 +526,7 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
                 history={history}
                 lastResult={lastResult}
                 loading={loading}
-                onAct={() => act()}
+                onAct={() => (actionInput.trim() ? runAction(actionInput) : act())}
                 onPickChoice={(c) => setActionInput(c)}
                 actionInput={actionInput}
                 setActionInput={setActionInput}

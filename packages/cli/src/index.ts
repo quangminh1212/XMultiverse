@@ -10,7 +10,13 @@ import { fileLog } from './file-logger.js';
 import { HELP_TEXT } from './commands/help.js';
 import { cmdHealth } from './commands/health.js';
 import { cmdStart, cmdStop, cmdStatus } from './commands/server.js';
-import { cmdWorldCreate, cmdWorldList, cmdWorldGet } from './commands/world.js';
+import {
+  cmdWorldCreate,
+  cmdWorldList,
+  cmdWorldGet,
+  cmdWorldExport,
+  cmdWorldImport,
+} from './commands/world.js';
 import { cmdPlayerCreate, cmdPlayerList } from './commands/player.js';
 import { cmdAct, cmdHistory } from './commands/roleplay.js';
 import { cmdEventAdd } from './commands/event.js';
@@ -109,8 +115,14 @@ async function main(): Promise<void> {
           case 'get':
             await cmdWorldGet(flags);
             break;
+          case 'export':
+            await cmdWorldExport(flags);
+            break;
+          case 'import':
+            await cmdWorldImport(flags);
+            break;
           default:
-            console.error('Dùng: xmv world <create|list|get>');
+            console.error('Dùng: xmv world <create|list|get|export|import>');
             console.error('Chạy "xmv help" để xem hướng dẫn.');
             process.exit(1);
         }

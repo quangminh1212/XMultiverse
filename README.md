@@ -217,7 +217,11 @@ Log file tự động xóa khi vượt quá 100MB.
 | GET | `/api/worlds` | Danh sách thế giới |
 | GET | `/api/worlds/:id` | Chi tiết thế giới |
 | DELETE | `/api/worlds/:id` | Xóa thế giới |
+| GET | `/api/worlds/:id/export` | Export world pack JSON |
+| POST | `/api/worlds/import` | Import world pack (new IDs) |
 | GET | `/api/worlds/:id/locations` | Bản đồ địa điểm |
+| GET/POST | `/api/players/:id/journal` | Nhật ký khám phá |
+| GET | `/api/players/:id/discovery` | % địa điểm đã khám phá |
 | POST | `/api/worlds/:id/events` | Thêm sự kiện timeline |
 | POST | `/api/worlds/:id/players` | Tạo nhân vật |
 | GET | `/api/worlds/:id/players` | Danh sách nhân vật |

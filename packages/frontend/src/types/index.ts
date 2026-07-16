@@ -109,6 +109,15 @@ export interface World {
   createdAt?: number | string;
 }
 
+export interface JournalEntry {
+  id: string;
+  at: number;
+  locationId?: string;
+  locationName?: string;
+  text: string;
+  source: 'travel' | 'act' | 'manual' | 'discover';
+}
+
 export interface Player {
   id: string;
   worldId: string;
@@ -120,10 +129,26 @@ export interface Player {
   stats: PlayerStats;
   currentScene: string;
   currentLocationId?: string;
+  visitedLocations?: string[];
   questLog?: QuestProgress[];
   relationships: Record<string, NPCDisposition>;
   sceneSummaries: string[];
+  journal?: JournalEntry[];
   createdAt?: number;
+}
+
+export interface WorldPack {
+  format: 'xmultiverse-world-v1';
+  exportedAt: number;
+  version: string;
+  world: World;
+}
+
+export interface DiscoveryInfo {
+  visited: number;
+  total: number;
+  percent: number;
+  visitedLocations?: string[];
 }
 
 export interface RelationshipChange {

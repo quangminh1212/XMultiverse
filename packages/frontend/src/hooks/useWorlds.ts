@@ -43,5 +43,22 @@ export function useWorlds() {
     setWorlds((prev) => prev.filter((w) => w.id !== id));
   }, []);
 
-  return { worlds, loading, error, refresh, createWorld, removeWorld, setError };
+  const importWorld = useCallback(async (file: File): Promise<World> => {
+    setLoading(true);
+    setError('');
+    try {
+      const text = await file.text();
+      const pack = JSON.parse(text);
+      const world = await api.importWorld(pack);
+      setWorlds((prev) => [world, ...prev]);
+      return world;
+    } catch (err: any) {
+      setError(err.message || 'Import thất bại');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { worlds, loading, error, refresh, createWorld, removeWorld, importWorld, setError };
 }
