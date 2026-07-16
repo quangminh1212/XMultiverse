@@ -1,2 +1,2 @@
 /** Journal & discovery diary module. */
-export { appendJournal, pushSceneSummary } from '../../services/player-state';
+export { appendJournal, pushSceneSummary } from '../../platform/player-state';

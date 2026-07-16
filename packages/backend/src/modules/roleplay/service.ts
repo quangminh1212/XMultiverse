@@ -1,9 +1,9 @@
 /** Roleplay / Game Master module. */
-export { generateRoleplayResponse } from '../../services/worldgen';
+export { generateRoleplayResponse } from '../../platform/worldgen';
 export {
   inferStatFromAction,
   inferDC,
   skillCheck,
   addXp,
   createDefaultStats,
-} from '../../services/dice';
+} from '../../platform/dice';

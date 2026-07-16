@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { requireString, asyncHandler } from '../../middleware/validate';
-import { HttpError } from '../../middleware/http-error';
+import { requireString, asyncHandler } from '../../platform/middleware/validate';
+import { HttpError } from '../../platform/middleware/http-error';
 import { requireFeature } from '../shared/feature-guard';
-import { getPlayer, getWorld } from '../../services/repository';
+import { getPlayer, getWorld } from '../../platform/repository';
 import { userFromToken } from '../auth/service';
 import {
   createShareCode,
@@ -12,7 +12,7 @@ import {
   getOnlinePlayers,
   leaveWorld,
 } from './service';
-import { info } from '../../services/logger';
+import { info } from '../../platform/logger';
 
 const router = Router();
 

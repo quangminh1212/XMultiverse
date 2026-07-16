@@ -26,7 +26,7 @@ import {
   type PlatformMode,
 } from './modes';
 import { isFeatureEnabled, type FeatureId } from '../../config/features';
-import { info, warn, error as logError } from '../../services/logger';
+import { info, warn, error as logError } from '../../platform/logger';
 
 export type PortKind = 'PPort' | 'RPort'; // Provide / Require (AUTOSAR naming)
 

@@ -1,12 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import { createApiRouter } from './modules';
-import { notFoundHandler, errorHandler } from './middleware/error-handlers';
-import { rateLimit } from './middleware/rate-limit';
+import { notFoundHandler, errorHandler } from './platform/middleware/error-handlers';
+import { rateLimit } from './platform/middleware/rate-limit';
 import { config } from './config';
 import { defaultScaleId } from './config/world-scale';
 import { rte } from './modules/runtime';
-import { error as logError, warn } from './services/logger';
+import { error as logError, warn } from './platform/logger';
 
 // Process-level isolation: never let a stray module error kill the whole process
 process.on('uncaughtException', (err) => {

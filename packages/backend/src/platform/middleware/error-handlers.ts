@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { warn, error as logError } from '../services/logger';
+import { warn, error as logError } from '../logger';
 import { HttpError, type ApiErrorBody } from './http-error';
 
 export function notFoundHandler(req: Request, res: Response): void {

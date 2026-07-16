@@ -9,4 +9,4 @@ export {
   inferStatFromAction,
   inferDC,
   DC,
-} from '../../services/dice';
+} from '../../platform/dice';

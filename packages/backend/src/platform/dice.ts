@@ -1,7 +1,7 @@
 /**
  * Dice and skill check system — inspired by GameMaster-GPT (1d20 + modifier vs DC).
  */
-import type { PlayerStats, DiceCheckResult } from '../types';
+import type { PlayerStats, DiceCheckResult } from './types';
 
 /** Roll a single die with `sides` faces. */
 export function rollDie(sides: number): number {

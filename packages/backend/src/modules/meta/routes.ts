@@ -12,7 +12,7 @@ import {
   type FeatureId,
 } from '../../config/features';
 import { getLimits } from '../../config/limits';
-import { HttpError } from '../../middleware/http-error';
+import { HttpError } from '../../platform/middleware/http-error';
 
 const router = Router();
 

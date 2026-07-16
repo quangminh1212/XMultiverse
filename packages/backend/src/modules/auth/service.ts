@@ -8,7 +8,7 @@ import {
   getSessionUserId,
   deleteSession,
   type UserRow,
-} from '../../services/repository';
+} from '../../platform/repository';
 
 export function hashPassword(password: string, salt?: string): string {
   const s = salt || randomBytes(8).toString('hex');

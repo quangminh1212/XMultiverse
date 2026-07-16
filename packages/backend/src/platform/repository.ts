@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { config } from '../config';
-import type { World, Player, ChatMessage, SaveSnapshot } from '../types';
+import type { World, Player, ChatMessage, SaveSnapshot } from './types';
 
 const DB_PATH = config.dbPath;
 

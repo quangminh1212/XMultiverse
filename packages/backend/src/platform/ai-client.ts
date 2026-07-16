@@ -1,5 +1,5 @@
 import { config } from '../config';
-import type { ChatMessage } from '../types';
+import type { ChatMessage } from './types';
 import { rte } from '../modules/runtime/rte';
 
 /**

@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { requireString, asyncHandler } from '../../middleware/validate';
-import { HttpError } from '../../middleware/http-error';
+import { requireString, asyncHandler } from '../../platform/middleware/validate';
+import { HttpError } from '../../platform/middleware/http-error';
 import { requireFeature } from '../shared/feature-guard';
 import { userFromToken } from '../auth/service';
 import { publishWorldToMarket, browseMarket, getMarketListing, installMarketPack } from './service';
-import { info } from '../../services/logger';
+import { info } from '../../platform/logger';
 
 const router = Router();
 

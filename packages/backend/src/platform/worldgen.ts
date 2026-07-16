@@ -13,7 +13,7 @@ import type {
   RelationshipChange,
   QuestProgress,
   WorldScale,
-} from '../types';
+} from './types';
 import { resolveScale, type WorldScaleId } from '../config/world-scale';
 
 const WORLD_SYSTEM_PROMPT = `Bạn là kiến trúc sư thế giới mở (open-world builder). Phân tích cốt truyện / phim / sách người dùng cung cấp và tạo một thế giới khám phá được.

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { isFeatureEnabled, type FeatureId } from '../../config/features';
-import { HttpError } from '../../middleware/http-error';
+import { HttpError } from '../../platform/middleware/http-error';
 import { isModuleRunnable } from '../runtime/rte';
 
 /**

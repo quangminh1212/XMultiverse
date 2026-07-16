@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { rte } from './rte';
 import { listModes, setMode, type PlatformMode, PLATFORM_MODES } from './modes';
 import { resetWatch } from './watchdog';
-import { HttpError } from '../../middleware/http-error';
-import { info } from '../../services/logger';
+import { HttpError } from '../../platform/middleware/http-error';
+import { info } from '../../platform/logger';
 
 const router = Router();
 

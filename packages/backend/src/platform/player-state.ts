@@ -2,7 +2,7 @@
  * Player state helpers — scale-aware caps for real open worlds.
  */
 import { v4 as uuidv4 } from 'uuid';
-import type { JournalEntry, Player, World, WorldPack, Location } from '../types';
+import type { JournalEntry, Player, World, WorldPack, Location } from './types';
 import {
   savePlayer,
   saveWorld,

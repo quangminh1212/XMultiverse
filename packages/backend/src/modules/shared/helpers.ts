@@ -1,4 +1,4 @@
-import type { Player, QuestProgress } from '../../types';
+import type { Player, QuestProgress } from '../../platform/types';
 
 export function clampDisp(n: number): number {
   return Math.max(-100, Math.min(100, n));

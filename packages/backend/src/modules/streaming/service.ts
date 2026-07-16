@@ -3,9 +3,9 @@
  * Demo mode: chunked text. Live AI: stream tokens when provider supports it.
  */
 import { config } from '../../config';
-import { stripCodeFences } from '../../services/ai-client';
-import type { ChatMessage } from '../../types';
-import { generateRoleplayResponse, type RoleplayInput } from '../../services/worldgen';
+import { stripCodeFences } from '../../platform/ai-client';
+import type { ChatMessage } from '../../platform/types';
+import { generateRoleplayResponse, type RoleplayInput } from '../../platform/worldgen';
 
 export type StreamEvent =
   | { type: 'token'; text: string }

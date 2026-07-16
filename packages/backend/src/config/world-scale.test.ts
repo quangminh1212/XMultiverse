@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolveScale, listScales, parseWorldScaleId, WORLD_SCALES } from './world-scale';
 import { getLimits } from './limits';
-import { expandLocationGraph, generateWorldFromStory } from '../services/worldgen';
+import { expandLocationGraph, generateWorldFromStory } from '../platform/worldgen';
 
 process.env.DEMO_MODE = 'true';
 

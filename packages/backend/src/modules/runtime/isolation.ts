@@ -10,9 +10,9 @@ import {
   type RequestHandler,
 } from 'express';
 import { isModuleRunnable, rte } from './rte';
-import { HttpError } from '../../middleware/http-error';
+import { HttpError } from '../../platform/middleware/http-error';
 import { recordFailure } from './watchdog';
-import { warn } from '../../services/logger';
+import { warn } from '../../platform/logger';
 
 /** Reject requests if SWC circuit is OPEN or mode forbids it. */
 export function requireSwc(moduleId: string): RequestHandler {

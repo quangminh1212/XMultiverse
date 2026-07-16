@@ -7,9 +7,9 @@ import {
   searchMarketPacks,
   getWorld,
   type MarketPackRow,
-} from '../../services/repository';
-import { exportWorldPack, importWorldPack } from '../../services/player-state';
-import type { WorldPack } from '../../types';
+} from '../../platform/repository';
+import { exportWorldPack, importWorldPack } from '../../platform/player-state';
+import type { WorldPack } from '../../platform/types';
 
 function slugify(s: string): string {
   return s

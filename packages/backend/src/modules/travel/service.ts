@@ -5,5 +5,5 @@ export {
   getStartingLocation,
   canTravel,
   expandLocationGraph,
-} from '../../services/worldgen';
-export { markVisited, discoveryProgress } from '../../services/player-state';
+} from '../../platform/worldgen';
+export { markVisited, discoveryProgress } from '../../platform/player-state';

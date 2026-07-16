@@ -1,6 +1,6 @@
 import app from './app';
 import { config } from './config';
-import { info, getLogFilePath } from './services/logger';
+import { info, getLogFilePath } from './platform/logger';
 
 app.listen(config.port, () => {
   const msg = `XMultiverse backend đang chạy tại http://localhost:${config.port}`;

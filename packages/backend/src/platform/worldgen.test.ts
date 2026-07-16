@@ -7,7 +7,7 @@ import {
   travelToLocation,
   _detectDemoGenreForTest,
 } from './worldgen';
-import type { Player, World } from '../types';
+import type { Player, World } from './types';
 import { createDefaultStats } from './dice';
 import { exportWorldPack, importWorldPack, slimWorld } from './player-state';
 import { LIMITS } from '../config/limits';

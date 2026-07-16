@@ -8,8 +8,8 @@ import {
   clearPresence,
   getWorld,
   type PresenceRow,
-} from '../../services/repository';
-import { findLocation } from '../../services/worldgen';
+} from '../../platform/repository';
+import { findLocation } from '../../platform/worldgen';
 
 export function createShareCode(worldId: string, ownerUserId?: string): string {
   if (!getWorld(worldId)) throw new Error('World not found');

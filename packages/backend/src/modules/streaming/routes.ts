@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireString } from '../../middleware/validate';
-import { HttpError } from '../../middleware/http-error';
+import { requireString } from '../../platform/middleware/validate';
+import { HttpError } from '../../platform/middleware/http-error';
 import { requireFeature } from '../shared/feature-guard';
 import {
   getPlayer,
@@ -8,8 +8,8 @@ import {
   getChatHistory,
   addChatMessage,
   saveWorld,
-} from '../../services/repository';
-import { inferStatFromAction, inferDC, skillCheck, addXp } from '../../services/dice';
+} from '../../platform/repository';
+import { inferStatFromAction, inferDC, skillCheck, addXp } from '../../platform/dice';
 import {
   markVisited,
   pushSceneSummary,
@@ -18,12 +18,12 @@ import {
   discoveryProgress,
   capTimeline,
   appendJournal,
-} from '../../services/player-state';
-import { findLocation } from '../../services/worldgen';
+} from '../../platform/player-state';
+import { findLocation } from '../../platform/worldgen';
 import { getLimits } from '../../config/limits';
 import { applyQuestUpdate, clampDisp } from '../shared/helpers';
 import { streamRoleplay } from './service';
-import { info } from '../../services/logger';
+import { info } from '../../platform/logger';
 
 const router = Router();
 
