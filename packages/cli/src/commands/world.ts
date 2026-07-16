@@ -4,6 +4,12 @@ import { requireArg } from '../args.js';
 
 export async function cmdWorldCreate(flags: Record<string, string | boolean>): Promise<void> {
   const story = requireArg(flags, 'story');
+  const sourceType =
+    typeof flags['source'] === 'string'
+      ? flags['source']
+      : typeof flags['type'] === 'string'
+        ? flags['type']
+        : 'story';
   beginSteps(3);
 
   const s0 = step('Validate input');
@@ -14,31 +20,40 @@ export async function cmdWorldCreate(flags: Record<string, string | boolean>): P
     });
   }
   stepDone(s0);
-  info(`Story: "${story.slice(0, 60)}${story.length > 60 ? '...' : ''}" (${story.length} ký tự)`);
+  info(
+    `Source: ${sourceType} | Story: "${story.slice(0, 60)}${story.length > 60 ? '...' : ''}" (${story.length} ký tự)`,
+  );
 
-  const s1 = step('Gọi AI tạo thế giới');
+  const s1 = step('Gọi AI tạo thế giới mở');
   try {
-    const world = await api.createWorld(story);
+    const world = await api.createWorld(story, sourceType);
     stepDone(s1);
     info(`AI đã trả về thế giới: "${world.name}"`);
 
     const s2 = step('Phân tích kết quả');
     stepDone(s2);
     info(
-      `Timeline: ${world.timeline.length} events | Characters: ${world.characters.length} | Quests: ${world.quests.length}`,
+      `Locations: ${world.locations?.length || 0} | Timeline: ${world.timeline.length} | Characters: ${world.characters.length} | Quests: ${world.quests.length}`,
     );
 
     emit('world-create', true, `Đã tạo thế giới "${world.name}" (ID: ${world.id})`, world, {
       nextSteps: [
         `Tạo nhân vật: xmv player create --world ${world.id} --name "..." --role "..."`,
         `Xem chi tiết: xmv world get --id ${world.id}`,
+        `Du hành: xmv travel --id <playerId> --to "<location name|id>"`,
       ],
     });
     printData({
       id: world.id,
       name: world.name,
       description: world.description,
+      sourceType: world.sourceType || sourceType,
       geography: world.geography,
+      locations: (world.locations || []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        connections: l.connections,
+      })),
       factions: world.factions.map((f) => f.name),
       timeline: world.timeline.map((e) => ({
         year: e.year,

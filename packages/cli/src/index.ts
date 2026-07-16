@@ -25,6 +25,7 @@ import {
   cmdSave,
   cmdLoad,
   cmdSaves,
+  cmdTravel,
 } from './commands/rpg.js';
 
 async function main(): Promise<void> {
@@ -169,6 +170,10 @@ async function main(): Promise<void> {
 
       case 'saves':
         await cmdSaves(flags);
+        break;
+
+      case 'travel':
+        await cmdTravel(flags);
         break;
 
       case 'event':

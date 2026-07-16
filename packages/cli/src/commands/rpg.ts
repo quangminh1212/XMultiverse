@@ -313,3 +313,54 @@ export async function cmdSaves(flags: Record<string, string | boolean>): Promise
     });
   }
 }
+
+/** xmv travel --id <playerId> --to "<location name|id>" — Move on the open-world map. */
+export async function cmdTravel(flags: Record<string, string | boolean>): Promise<void> {
+  const playerId = requireArg(flags, 'id');
+  const to = requireArg(flags, 'to');
+  beginSteps(2);
+
+  const s0 = step(`Du hành tới "${to}"`);
+  try {
+    const result = await api.travel(playerId, to);
+    stepDone(s0);
+    info(`Đã đến: ${result.location?.name || to}`);
+    info(result.scene.slice(0, 200));
+
+    const s1 = step('Hoàn tất');
+    stepDone(s1);
+
+    emit(
+      'travel',
+      true,
+      `Đã đến ${result.location?.name || to}`,
+      {
+        location: result.location,
+        scene: result.scene,
+        choices: result.choices,
+        playerId: result.player?.id,
+      },
+      {
+        nextSteps: [
+          `Khám phá: xmv act --id ${playerId} --action "Khám phá xung quanh"`,
+          `Nói chuyện: xmv act --id ${playerId} --action "Nói với NPC"`,
+        ],
+      },
+    );
+    printData({
+      location: result.location,
+      scene: result.scene,
+      choices: result.choices,
+      currentLocationId: result.player?.currentLocationId,
+    });
+  } catch (err: any) {
+    stepFail(s0);
+    fatal('travel', err.message, undefined, {
+      missing: [err.message],
+      nextSteps: [
+        'Xem world: xmv world get --id <worldId>',
+        'Chỉ có thể đi tới địa điểm trong connections của vị trí hiện tại',
+      ],
+    });
+  }
+}

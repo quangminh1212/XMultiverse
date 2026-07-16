@@ -25,18 +25,21 @@ LỆNH THUỘC DỰ ÁN:
   xmv health                        Kiểm tra health endpoint của backend
 
 THẾ GIỚI:
-  xmv world create --story "..."    Tạo thế giới mới từ cốt truyện
+  xmv world create --story "..." [--source story|movie|book|anime|original]
+                                    Tạo thế giới mở từ cốt truyện / phim
   xmv world list                    Liệt kê tất cả thế giới
-  xmv world get --id <worldId>      Xem chi tiết thế giới
+  xmv world get --id <worldId>      Xem chi tiết (locations, factions, quests)
 
 NHÂN VẬT:
   xmv player create --world <id> --name "..." --role "..." [--backstory "..."] [--faction "..."]
                                     Tạo nhân vật trong thế giới
   xmv player list --world <id>      Liệt kê nhân vật trong thế giới
 
-NHẬP VAI:
+NHẬP VAI & DU HÀNH:
   xmv act --id <playerId> --action "..."
                                     Thực hiện hành động nhập vai
+  xmv travel --id <playerId> --to "<location name|id>"
+                                    Du hành tới địa điểm trên bản đồ
   xmv history --id <playerId>       Xem lịch sử chat
 
 RPG STATS & INVENTORY:

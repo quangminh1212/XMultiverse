@@ -15,19 +15,20 @@
 
 ## Giới thiệu
 
-**XMultiverse** là một ứng dụng web cho phép bạn nhập một cốt truyện/truyện bất kỳ, sau đó AI tự động **kiến tạo thế giới**, **dòng thời gian**, **nhân vật**, **phe phái**, và **nhiệm vụ**. Từ đó, bạn có thể tạo nhân vật của riêng mình, **nhập vai**, thực hiện hành động, và thậm chí **thêm sự kiện mới** vào timeline.
+**XMultiverse** là platform kiến tạo **thế giới mở** từ cốt truyện, phim, sách hoặc anime. AI sinh **bản đồ địa điểm có thể du hành**, **timeline**, **NPC**, **phe phái**, **quests** — rồi người chơi (hoặc AI agent qua CLI) bước vào **khám phá**, **nhập vai**, và để lại dấu ấn lên thế giới.
 
 ## Tính năng
 
-- **Sinh thế giới tự động** từ cốt truyện: tên, mô tả, địa lý, phe phái, hệ thống sức mạnh, công nghệ.
-- **Dòng thời gian tự động**: AI tạo 6–10 sự kiện lịch sử theo thứ tự thời gian.
-- **Nhân vật & nhiệm vụ**: sinh sẵn nhân vật chính và quest cho người chơi.
-- **Tạo nhân vật**: người dùng tạo nhân vật riêng để bước vào thế giới.
-- **Nhập vai (roleplay)**: nhập hành động, AI trả về cảnh tiếp theo + gợi ý lựa chọn.
-- **Chỉnh sửa timeline**: người chơi có thể bổ sung sự kiện lịch sử.
-- **Lưu trữ SQLite**: worlds, players, lịch sử chat.
-- **Demo mode**: chạy thử không cần AI API key.
-- **Cross-platform**: chạy trên Windows, macOS, và Linux.
+- **Sinh thế giới mở** từ story/movie/book/anime: geography + đồ thị locations nối nhau.
+- **Du hành (travel)**: di chuyển giữa địa điểm, gặp NPC theo vùng, khám phá open world.
+- **Preset cốt truyện/phim** trên UI để kiến tạo nhanh.
+- **Dòng thời gian**: 6–10 sự kiện lịch sử; người chơi có thể bổ sung.
+- **Nhân vật & quest log**: quest theo dõi active/completed/failed.
+- **Nhập vai (roleplay)**: scene, choices, dice checks, effects, items, XP, relationships.
+- **RPG systems**: stats, inventory, 1d20 skill checks, NPC disposition, save/load.
+- **CLI cho AI agent**: `xmv world/player/act/travel/save/... --json`.
+- **SQLite persistence** + **Demo mode** (không cần AI key).
+- **Cross-platform**: Windows, macOS, Linux.
 
 ## Yêu cầu hệ thống
 
@@ -209,17 +210,27 @@ Log file tự động xóa khi vượt quá 100MB.
 
 ## API Reference
 
-| Method | Endpoint                       | Mô tả                          |
-| ------ | ------------------------------ | ------------------------------ |
-| GET    | `/health`                      | Health check                   |
-| POST   | `/api/worlds`                  | Tạo thế giới từ story          |
-| GET    | `/api/worlds`                  | Danh sách thế giới             |
-| GET    | `/api/worlds/:id`              | Chi tiết thế giới              |
-| POST   | `/api/worlds/:id/events`       | Thêm sự kiện timeline          |
-| POST   | `/api/worlds/:id/players`      | Tạo nhân vật                   |
-| GET    | `/api/worlds/:id/players`      | Danh sách nhân vật trong world |
-| POST   | `/api/players/:id/act`         | Thực hiện hành động nhập vai   |
-| GET    | `/api/players/:id/history`     | Lịch sử chat                   |
+| Method | Endpoint | Mô tả |
+| ------ | -------- | ----- |
+| GET | `/health` | Health check |
+| POST | `/api/worlds` | Tạo thế giới (`story`, optional `sourceType`) |
+| GET | `/api/worlds` | Danh sách thế giới |
+| GET | `/api/worlds/:id` | Chi tiết thế giới |
+| DELETE | `/api/worlds/:id` | Xóa thế giới |
+| GET | `/api/worlds/:id/locations` | Bản đồ địa điểm |
+| POST | `/api/worlds/:id/events` | Thêm sự kiện timeline |
+| POST | `/api/worlds/:id/players` | Tạo nhân vật |
+| GET | `/api/worlds/:id/players` | Danh sách nhân vật |
+| POST | `/api/players/:id/act` | Hành động nhập vai |
+| POST | `/api/players/:id/travel` | Du hành tới location |
+| GET | `/api/players/:id/location` | Vị trí hiện tại |
+| GET | `/api/players/:id/history` | Lịch sử chat |
+| GET/POST | `/api/players/:id/quests` | Quest log |
+| POST/DELETE | `/api/players/:id/inventory` | Túi đồ |
+| GET/POST | `/api/players/:id/relationships` | NPC disposition |
+| POST | `/api/roll`, `/api/players/:id/check` | Dice / skill check |
+| POST/GET | `/api/players/:id/saves` | Save snapshots |
+| POST | `/api/saves/:id/load` | Load snapshot |
 
 ## Scripts
 

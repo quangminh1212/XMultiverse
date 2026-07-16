@@ -33,12 +33,23 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+export interface Location {
+  id: string;
+  name: string;
+  description: string;
+  atmosphere?: string;
+  connections: string[];
+  npcs: string[];
+  tags?: string[];
+}
+
 export interface World {
   id: string;
   storyInput: string;
   name: string;
   description: string;
   geography: string[];
+  locations?: Location[];
   factions: { name: string; description: string; goals: string[] }[];
   magicSystem?: string;
   technologyLevel?: string;
@@ -51,6 +62,7 @@ export interface World {
   }[];
   characters: { id: string; name: string; role: string; faction?: string; description: string }[];
   quests: { id: string; title: string; description: string; objective: string }[];
+  sourceType?: string;
   createdAt: number;
 }
 
@@ -97,6 +109,8 @@ export interface Player {
   inventory: InventoryItem[];
   stats: PlayerStats;
   currentScene: string;
+  currentLocationId?: string;
+  questLog?: { questId: string; status: string; progress?: string }[];
   relationships: Record<string, NPCDisposition>;
   sceneSummaries: string[];
   createdAt?: number;
@@ -148,7 +162,10 @@ export const api = {
   health: () => request<HealthStatus>('GET', '/health'),
   listWorlds: () => request<World[]>('GET', '/api/worlds'),
   getWorld: (id: string) => request<World>('GET', `/api/worlds/${id}`),
-  createWorld: (story: string) => request<World>('POST', '/api/worlds', { story }),
+  createWorld: (story: string, sourceType?: string) =>
+    request<World>('POST', '/api/worlds', { story, sourceType }),
+  listLocations: (worldId: string) =>
+    request<Location[]>('GET', `/api/worlds/${worldId}/locations`),
   addEvent: (
     worldId: string,
     event: { year: number; title: string; description: string; important: boolean },
@@ -165,6 +182,12 @@ export const api = {
     request<RoleplayResult>('POST', `/api/players/${playerId}/act`, { action }),
   getHistory: (playerId: string) =>
     request<{ role: string; content: string }[]>('GET', `/api/players/${playerId}/history`),
+  travel: (playerId: string, locationId: string) =>
+    request<RoleplayResult & { location: Location; player: Player }>(
+      'POST',
+      `/api/players/${playerId}/travel`,
+      { locationId },
+    ),
 
   // Inventory
   addItem: (playerId: string, item: Partial<InventoryItem>) =>

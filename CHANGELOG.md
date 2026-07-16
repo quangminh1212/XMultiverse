@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Open-world **locations graph** generated with each world (5–10 connected places).
+- **Travel** API/CLI/UI: move between locations with connection rules.
+- **Source types** for world seed: `story` | `movie` | `book` | `anime` | `original`.
+- Story/movie **presets** on the homepage for one-click world creation.
+- Player **quest log** + relationship updates applied from roleplay results.
+- Save list **load/delete** UI; map panel and current-location badge.
+- CLI: `xmv travel --id <player> --to "<location>"`; `world create --source ...`.
+
 ## [1.0.0] - 2026-07-15
 
 ### Added

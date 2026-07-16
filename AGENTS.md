@@ -14,16 +14,19 @@ npm run xmv start
 # 3. Kiểm tra health
 npm run xmv health
 
-# 4. Tạo thế giới từ cốt truyện
-npm run xmv world create -- --story "Một hiệp sĩ tìm kiếm thanh kiếm thần để đánh bại quỷ vương"
+# 4. Tạo thế giới mở từ cốt truyện / phim
+npm run xmv world create -- --story "Một hiệp sĩ tìm kiếm thanh kiếm thần để đánh bại quỷ vương" --source story
 
 # 5. Tạo nhân vật
 npm run xmv player create -- --world <WORLD_ID> --name "Kael" --role "Kiếm sĩ"
 
-# 6. Nhập vai — thực hiện hành động
-npm run xmv act -- --id <PLAYER_ID> --action "Tiến vào Rừng sâu Bóng Đêm"
+# 6. Du hành trên bản đồ
+npm run xmv travel -- --id <PLAYER_ID> --to "Rừng sâu Bóng Đêm"
 
-# 7. Dừng server khi xong
+# 7. Nhập vai — thực hiện hành động
+npm run xmv act -- --id <PLAYER_ID> --action "Khám phá xung quanh"
+
+# 8. Dừng server khi xong
 npm run xmv stop
 ```
 
@@ -44,9 +47,9 @@ Tất cả lệnh đều có flag `--json` để xuất JSON (cho AI agent parse
 
 | Lệnh | Mô tả |
 |------|-------|
-| `xmv world create --story "..."` | Tạo thế giới từ cốt truyện |
+| `xmv world create --story "..." [--source story\|movie\|book\|anime]` | Tạo thế giới mở từ cốt truyện/phim |
 | `xmv world list` | Liệt kê tất cả thế giới |
-| `xmv world get --id <worldId>` | Xem chi tiết thế giới |
+| `xmv world get --id <worldId>` | Xem chi tiết thế giới (locations, quests...) |
 
 ### Player
 
@@ -60,6 +63,7 @@ Tất cả lệnh đều có flag `--json` để xuất JSON (cho AI agent parse
 | Lệnh | Mô tả |
 |------|-------|
 | `xmv act --id <playerId> --action "..."` | Thực hiện hành động nhập vai |
+| `xmv travel --id <playerId> --to "<location>"` | Du hành tới địa điểm trên bản đồ |
 | `xmv history --id <playerId>` | Xem lịch sử chat |
 
 ### Timeline
