@@ -46,10 +46,59 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    pass_hash TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS world_shares (
+    code TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL,
+    owner_user_id TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (world_id) REFERENCES worlds(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS presence (
+    player_id TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL,
+    user_id TEXT,
+    player_name TEXT NOT NULL,
+    location_id TEXT,
+    location_name TEXT,
+    last_seen INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS market_packs (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tags TEXT NOT NULL,
+    downloads INTEGER NOT NULL DEFAULT 0,
+    data TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_players_world ON players(world_id);
   CREATE INDEX IF NOT EXISTS idx_chats_player ON chats(player_id);
   CREATE INDEX IF NOT EXISTS idx_snapshots_world ON snapshots(world_id);
   CREATE INDEX IF NOT EXISTS idx_snapshots_player ON snapshots(player_id);
+  CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_presence_world ON presence(world_id);
+  CREATE INDEX IF NOT EXISTS idx_market_created ON market_packs(created_at);
 `);
 
 export function saveWorld(world: World): void {
@@ -156,4 +205,213 @@ export function listSnapshotsByWorld(worldId: string): SaveSnapshot[] {
 
 export function deleteSnapshot(id: string): void {
   db.prepare('DELETE FROM snapshots WHERE id = ?').run(id);
+}
+
+// ============================================================
+// Users / sessions (local auth)
+// ============================================================
+
+export interface UserRow {
+  id: string;
+  username: string;
+  passHash: string;
+  displayName: string;
+  createdAt: number;
+}
+
+export function createUser(user: UserRow): void {
+  db.prepare(
+    'INSERT INTO users (id, username, pass_hash, display_name, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(user.id, user.username, user.passHash, user.displayName, user.createdAt);
+}
+
+export function getUserByUsername(username: string): UserRow | null {
+  const row = db
+    .prepare(
+      'SELECT id, username, pass_hash as passHash, display_name as displayName, created_at as createdAt FROM users WHERE username = ?',
+    )
+    .get(username.toLowerCase()) as UserRow | undefined;
+  return row || null;
+}
+
+export function getUserById(id: string): UserRow | null {
+  const row = db
+    .prepare(
+      'SELECT id, username, pass_hash as passHash, display_name as displayName, created_at as createdAt FROM users WHERE id = ?',
+    )
+    .get(id) as UserRow | undefined;
+  return row || null;
+}
+
+export function createSession(token: string, userId: string, ttlMs = 7 * 24 * 3600_000): void {
+  const now = Date.now();
+  db.prepare(
+    'INSERT OR REPLACE INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)',
+  ).run(token, userId, now, now + ttlMs);
+}
+
+export function getSessionUserId(token: string): string | null {
+  const row = db
+    .prepare('SELECT user_id as userId, expires_at as expiresAt FROM sessions WHERE token = ?')
+    .get(token) as { userId: string; expiresAt: number } | undefined;
+  if (!row) return null;
+  if (row.expiresAt < Date.now()) {
+    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    return null;
+  }
+  return row.userId;
+}
+
+export function deleteSession(token: string): void {
+  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+}
+
+// ============================================================
+// World shares (multiplayer join codes)
+// ============================================================
+
+export function saveWorldShare(code: string, worldId: string, ownerUserId?: string): void {
+  db.prepare(
+    'INSERT OR REPLACE INTO world_shares (code, world_id, owner_user_id, created_at) VALUES (?, ?, ?, ?)',
+  ).run(code.toUpperCase(), worldId, ownerUserId || null, Date.now());
+}
+
+export function getWorldShare(
+  code: string,
+): { code: string; worldId: string; ownerUserId?: string } | null {
+  const row = db
+    .prepare(
+      'SELECT code, world_id as worldId, owner_user_id as ownerUserId FROM world_shares WHERE code = ?',
+    )
+    .get(code.toUpperCase()) as { code: string; worldId: string; ownerUserId?: string } | undefined;
+  return row || null;
+}
+
+export function listWorldSharesByWorld(worldId: string): string[] {
+  const rows = db.prepare('SELECT code FROM world_shares WHERE world_id = ?').all(worldId) as {
+    code: string;
+  }[];
+  return rows.map((r) => r.code);
+}
+
+// ============================================================
+// Presence (multiplayer online)
+// ============================================================
+
+export interface PresenceRow {
+  playerId: string;
+  worldId: string;
+  userId?: string;
+  playerName: string;
+  locationId?: string;
+  locationName?: string;
+  lastSeen: number;
+}
+
+export function upsertPresence(p: PresenceRow): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO presence
+     (player_id, world_id, user_id, player_name, location_id, location_name, last_seen)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    p.playerId,
+    p.worldId,
+    p.userId || null,
+    p.playerName,
+    p.locationId || null,
+    p.locationName || null,
+    p.lastSeen,
+  );
+}
+
+export function listPresence(worldId: string, maxAgeMs = 60_000): PresenceRow[] {
+  const cutoff = Date.now() - maxAgeMs;
+  const rows = db
+    .prepare(
+      `SELECT player_id as playerId, world_id as worldId, user_id as userId,
+              player_name as playerName, location_id as locationId,
+              location_name as locationName, last_seen as lastSeen
+       FROM presence WHERE world_id = ? AND last_seen >= ? ORDER BY last_seen DESC`,
+    )
+    .all(worldId, cutoff) as PresenceRow[];
+  return rows;
+}
+
+export function clearPresence(playerId: string): void {
+  db.prepare('DELETE FROM presence WHERE player_id = ?').run(playerId);
+}
+
+// ============================================================
+// Marketplace packs
+// ============================================================
+
+export interface MarketPackRow {
+  id: string;
+  slug: string;
+  title: string;
+  author: string;
+  description: string;
+  tags: string[];
+  downloads: number;
+  data: string;
+  createdAt: number;
+}
+
+export function saveMarketPack(pack: MarketPackRow): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO market_packs
+     (id, slug, title, author, description, tags, downloads, data, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    pack.id,
+    pack.slug,
+    pack.title,
+    pack.author,
+    pack.description,
+    JSON.stringify(pack.tags),
+    pack.downloads,
+    pack.data,
+    pack.createdAt,
+  );
+}
+
+export function listMarketPacks(limit = 50): Omit<MarketPackRow, 'data'>[] {
+  const rows = db
+    .prepare(
+      `SELECT id, slug, title, author, description, tags, downloads, created_at as createdAt
+       FROM market_packs ORDER BY created_at DESC LIMIT ?`,
+    )
+    .all(limit) as any[];
+  return rows.map((r) => ({
+    ...r,
+    tags: JSON.parse(r.tags || '[]'),
+  }));
+}
+
+export function getMarketPack(idOrSlug: string): MarketPackRow | null {
+  const row = db
+    .prepare(
+      `SELECT id, slug, title, author, description, tags, downloads, data, created_at as createdAt
+       FROM market_packs WHERE id = ? OR slug = ?`,
+    )
+    .get(idOrSlug, idOrSlug) as any;
+  if (!row) return null;
+  return { ...row, tags: JSON.parse(row.tags || '[]') };
+}
+
+export function bumpMarketDownload(id: string): void {
+  db.prepare('UPDATE market_packs SET downloads = downloads + 1 WHERE id = ?').run(id);
+}
+
+export function searchMarketPacks(q: string, limit = 30): Omit<MarketPackRow, 'data'>[] {
+  const like = `%${q.toLowerCase()}%`;
+  const rows = db
+    .prepare(
+      `SELECT id, slug, title, author, description, tags, downloads, created_at as createdAt
+       FROM market_packs
+       WHERE lower(title) LIKE ? OR lower(description) LIKE ? OR lower(tags) LIKE ? OR lower(author) LIKE ?
+       ORDER BY downloads DESC LIMIT ?`,
+    )
+    .all(like, like, like, like, limit) as any[];
+  return rows.map((r) => ({ ...r, tags: JSON.parse(r.tags || '[]') }));
 }

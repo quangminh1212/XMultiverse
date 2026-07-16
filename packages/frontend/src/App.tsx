@@ -14,9 +14,10 @@ export default function App() {
           </a>
           <div className="nav-links">
             <a href="#create">Tạo thế giới</a>
+            <a href="#platform">Platform</a>
             <a href="#worlds">Thế giới</a>
             <a href="#how">Cách hoạt động</a>
-            <span className="nav-badge">AI Ready</span>
+            <span className="nav-badge">v1.2+</span>
           </div>
         </div>
       </nav>

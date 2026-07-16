@@ -1602,3 +1602,31 @@ button.lg {
   padding: 12px 14px;
   font-size: 0.9rem;
 }
+
+/* Mobile / PWA */
+@media (max-width: 640px) {
+  .hero h1 {
+    font-size: 2rem;
+  }
+  .nav-links a {
+    display: none;
+  }
+  .nav-badge {
+    font-size: 0.7rem;
+  }
+  .container {
+    padding: 0 14px;
+  }
+  .card {
+    padding: 16px;
+  }
+  button.lg {
+    width: 100%;
+  }
+}
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

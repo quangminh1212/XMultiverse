@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useWorlds } from '../hooks/useWorlds';
 import { WorldCard } from '../components/WorldCard';
+import { PlatformPanel } from '../components/PlatformPanel';
 import { WorldView } from './WorldView';
 import { api } from '../services/api';
 import type { SourceType, World, WorldScale } from '../types';
@@ -245,6 +246,17 @@ export function HomePage() {
           </form>
         </div>
       </section>
+
+      <PlatformPanel
+        onInstalledWorld={async (id) => {
+          try {
+            const w = await api.getWorld(id);
+            setCurrentWorld(w);
+          } catch {
+            /* ignore */
+          }
+        }}
+      />
 
       {worlds.length > 0 && (
         <section className="section container" id="worlds">

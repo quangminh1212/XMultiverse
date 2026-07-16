@@ -179,4 +179,108 @@ export const api = {
     }),
   deleteSave: (saveId: string) =>
     request<{ ok: boolean }>(`/saves/${saveId}`, { method: 'DELETE' }),
+
+  // Auth
+  register: (username: string, password: string, displayName?: string) =>
+    request<{ user: { id: string; username: string; displayName: string }; token: string }>(
+      '/auth/register',
+      { method: 'POST', body: JSON.stringify({ username, password, displayName }) },
+    ),
+  login: (username: string, password: string) =>
+    request<{ user: { id: string; username: string; displayName: string }; token: string }>(
+      '/auth/login',
+      { method: 'POST', body: JSON.stringify({ username, password }) },
+    ),
+  me: (token: string) =>
+    request<{ user: { id: string; username: string; displayName: string } }>('/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  // Multiplayer
+  shareWorld: (worldId: string, token?: string) =>
+    request<{ code: string; worldId: string; name: string }>(`/worlds/${worldId}/share`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  joinByCode: (code: string) =>
+    request<{ worldId: string; name: string; description: string; scale?: string }>(
+      '/multiplayer/join',
+      { method: 'POST', body: JSON.stringify({ code }) },
+    ),
+  presence: (playerId: string, token?: string) =>
+    request(`/players/${playerId}/presence`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  online: (worldId: string) =>
+    request<{ online: Array<{ playerId: string; playerName: string; locationName?: string }> }>(
+      `/worlds/${worldId}/online`,
+    ),
+
+  // Marketplace
+  listMarket: (q?: string) =>
+    request<{
+      packs: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        author: string;
+        description: string;
+        downloads: number;
+        tags: string[];
+      }>;
+    }>(q ? `/market/packs?q=${encodeURIComponent(q)}` : '/market/packs'),
+  publishMarket: (
+    worldId: string,
+    opts?: { title?: string; author?: string; tags?: string[] },
+    token?: string,
+  ) =>
+    request('/market/publish', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify({ worldId, ...opts }),
+    }),
+  installMarket: (id: string) => request<World>(`/market/packs/${id}/install`, { method: 'POST' }),
 };
+
+/** SSE streaming act — yields tokens then final result JSON. */
+export async function actStream(
+  playerId: string,
+  action: string,
+  onToken: (t: string) => void,
+): Promise<RoleplayResult & { player?: Player }> {
+  const res = await fetch(`/api/players/${playerId}/act/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action }),
+  });
+  if (!res.ok || !res.body) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).error || `HTTP ${res.status}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let donePayload: any = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop() || '';
+    for (const chunk of chunks) {
+      const line = chunk.trim();
+      if (!line.startsWith('data:')) continue;
+      try {
+        const ev = JSON.parse(line.slice(5).trim());
+        if (ev.type === 'token') onToken(ev.text || '');
+        if (ev.type === 'done') donePayload = ev.result;
+        if (ev.type === 'error') throw new Error(ev.message || 'stream error');
+      } catch (e: any) {
+        if (e.message && e.message !== 'stream error' && !String(e).includes('JSON')) throw e;
+      }
+    }
+  }
+  if (!donePayload) throw new Error('Stream ended without result');
+  return donePayload;
+}

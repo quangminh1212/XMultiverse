@@ -7,9 +7,20 @@ import { listScales, defaultScaleId } from '../config/world-scale';
 import type { FeatureModule, ModuleStatus } from './types';
 import { metaModule } from './meta';
 import { gameModule } from './game';
+import { authModule } from './auth';
+import { multiplayerModule } from './multiplayer';
+import { marketplaceModule } from './marketplace';
+import { streamingModule } from './streaming';
 
 /** Ordered HTTP modules (meta first). */
-const HTTP_MODULES: FeatureModule[] = [metaModule, gameModule];
+const HTTP_MODULES: FeatureModule[] = [
+  metaModule,
+  authModule,
+  multiplayerModule,
+  marketplaceModule,
+  streamingModule,
+  gameModule,
+];
 
 /** Domain service modules (importable for extension). */
 export const SERVICE_MODULES = [
@@ -20,6 +31,10 @@ export const SERVICE_MODULES = [
   { id: 'journal' as const, name: 'Journal', path: 'modules/journal/service' },
   { id: 'rpg' as const, name: 'RPG systems', path: 'modules/rpg/service' },
   { id: 'save' as const, name: 'Save/load', path: 'modules/save/service' },
+  { id: 'auth' as const, name: 'Auth', path: 'modules/auth/service' },
+  { id: 'multiplayer' as const, name: 'Multiplayer', path: 'modules/multiplayer/service' },
+  { id: 'marketplace' as const, name: 'Marketplace', path: 'modules/marketplace/service' },
+  { id: 'streaming' as const, name: 'Streaming', path: 'modules/streaming/service' },
 ];
 
 export function listModules(): ModuleStatus[] {
@@ -55,6 +70,7 @@ export function createApiRouter(): Router {
       catalog: FEATURE_CATALOG.map((f) => f.id),
       scales: listScales().map((s) => s.id),
       services: SERVICE_MODULES,
+      v2: ['auth', 'multiplayer', 'marketplace', 'streaming', 'pwa'],
     });
   });
 

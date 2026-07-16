@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-16
+
+### Added
+- **Auth**: local register/login, bearer sessions (`/api/auth/*`).
+- **Multiplayer**: world share codes, presence heartbeat, online list.
+- **Marketplace**: publish / browse / search / install world packs.
+- **Streaming GM**: `POST /api/players/:id/act/stream` (SSE tokens + final result).
+- **PWA / mobile**: web manifest, service worker, responsive safe-area CSS.
+- UI: Platform panel (auth, join, market), Share/Publish, Streaming checkbox, online roster.
+
 ## [1.2.0] - 2026-07-16
 
 ### Added

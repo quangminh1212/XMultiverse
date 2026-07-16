@@ -16,3 +16,7 @@ export * as questService from './quest/service';
 export * as journalService from './journal/service';
 export * as rpgService from './rpg/service';
 export * as saveService from './save/service';
+export * as authService from './auth/service';
+export * as multiplayerService from './multiplayer/service';
+export * as marketplaceService from './marketplace/service';
+export * as streamingService from './streaming/service';

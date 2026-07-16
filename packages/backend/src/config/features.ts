@@ -15,7 +15,11 @@ export type FeatureId =
   | 'save'
   | 'timeline'
   | 'relationships'
-  | 'discovery';
+  | 'discovery'
+  | 'auth'
+  | 'multiplayer'
+  | 'marketplace'
+  | 'streaming';
 
 export interface FeatureDef {
   id: FeatureId;
@@ -94,6 +98,30 @@ export const FEATURE_CATALOG: FeatureDef[] = [
     id: 'timeline',
     name: 'Timeline events',
     description: 'Thêm sự kiện dòng thời gian',
+    defaultEnabled: true,
+  },
+  {
+    id: 'auth',
+    name: 'Auth',
+    description: 'Local accounts + bearer tokens',
+    defaultEnabled: true,
+  },
+  {
+    id: 'multiplayer',
+    name: 'Multiplayer',
+    description: 'Share codes + online presence',
+    defaultEnabled: true,
+  },
+  {
+    id: 'marketplace',
+    name: 'Marketplace',
+    description: 'Publish / browse / install world packs',
+    defaultEnabled: true,
+  },
+  {
+    id: 'streaming',
+    name: 'Streaming GM',
+    description: 'SSE streaming for roleplay scenes',
     defaultEnabled: true,
   },
 ];

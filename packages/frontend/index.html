@@ -3,12 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="XMultiverse — Nhập một câu chuyện, AI kiến tạo thế giới. Tạo geography, factions, magic system, timeline, characters, quests và nhập vai trong thế giới đó." />
-    <title>XMultiverse — Thế Giới Mở Từ Cốt Truyện</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="description" content="XMultiverse — Open-world modular platform from stories & films. Multiplayer share, marketplace packs, streaming GM." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <title>XMultiverse — Open World Platform</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
+

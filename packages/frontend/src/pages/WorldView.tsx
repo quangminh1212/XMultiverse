@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { World, Player, RoleplayResult, SaveSnapshot, ChatMessage } from '../types';
-import { api } from '../services/api';
+import { api, actStream } from '../services/api';
+import { getStoredToken } from '../components/PlatformPanel';
 import { EventForm } from '../components/EventForm';
 import { Timeline } from '../components/Timeline';
 import { FactionList, CharacterList, QuestList, LocationMap } from '../components/WorldDetails';
@@ -34,6 +35,11 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('map');
   const [saves, setSaves] = useState<SaveSnapshot[]>([]);
+  const [useStream, setUseStream] = useState(true);
+  const [online, setOnline] = useState<
+    Array<{ playerId: string; playerName: string; locationName?: string }>
+  >([]);
+  const [shareCode, setShareCode] = useState('');
 
   useEffect(() => {
     fetchPlayers();
@@ -150,22 +156,74 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
     setLoading(true);
     setError('');
     try {
-      const result = await api.act(player.id, action);
-      setLastResult(result);
-      setHistory((h) => [
-        ...h,
-        { role: 'user', content: action },
-        { role: 'assistant', content: result.scene },
-      ]);
+      let result: RoleplayResult & { player?: Player };
+      if (useStream) {
+        let streamed = '';
+        setHistory((h) => [
+          ...h,
+          { role: 'user', content: action },
+          { role: 'assistant', content: '…' },
+        ]);
+        result = await actStream(player.id, action, (t) => {
+          streamed += t;
+          setHistory((h) => {
+            const copy = [...h];
+            const last = copy.length - 1;
+            if (last >= 0 && copy[last].role === 'assistant') {
+              copy[last] = { role: 'assistant', content: streamed };
+            }
+            return copy;
+          });
+        });
+        setLastResult(result);
+      } else {
+        result = await api.act(player.id, action);
+        setLastResult(result);
+        setHistory((h) => [
+          ...h,
+          { role: 'user', content: action },
+          { role: 'assistant', content: result.scene },
+        ]);
+      }
       if (result.player) setPlayer(result.player);
       setActionInput('');
       const updated = await api.getWorld(world.id);
       onWorldUpdated(updated);
       setSaves(await api.listSaves(player.id));
+      try {
+        await api.presence(player.id, getStoredToken() || undefined);
+        const o = await api.online(world.id);
+        setOnline(o.online || []);
+      } catch {
+        /* multiplayer optional */
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleShare() {
+    try {
+      const r = await api.shareWorld(world.id, getStoredToken() || undefined);
+      setShareCode(r.code);
+      alert(`Share code: ${r.code}`);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function handlePublish() {
+    try {
+      const r = await api.publishMarket(
+        world.id,
+        { title: world.name },
+        getStoredToken() || undefined,
+      );
+      alert(`Published to marketplace: ${(r as any).title || world.name}`);
+    } catch (e: any) {
+      setError(e.message);
     }
   }
 
@@ -308,11 +366,26 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
         <div className="detail-row">
           <strong>⚙️ Công nghệ:</strong> {world.technologyLevel || 'Bình thường'}
         </div>
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="secondary" onClick={handleExport}>
-            📤 Export world pack
+            📤 Export
           </button>
+          <button type="button" className="secondary" onClick={handleShare}>
+            👥 Share code
+          </button>
+          <button type="button" className="secondary" onClick={handlePublish}>
+            🛒 Publish market
+          </button>
+          {shareCode && <span className="badge">Code: {shareCode}</span>}
         </div>
+        {online.length > 0 && (
+          <p style={{ marginTop: 10, color: 'var(--accent3)', fontSize: '0.88rem' }}>
+            Online:{' '}
+            {online
+              .map((o) => `${o.playerName}${o.locationName ? `@${o.locationName}` : ''}`)
+              .join(', ')}
+          </p>
+        )}
       </div>
 
       {/* Open world map always visible */}
@@ -410,6 +483,15 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
                   📍 {currentLocName}
                 </span>
               )}
+              <label style={{ marginLeft: 12, fontSize: '0.85rem', color: 'var(--muted)' }}>
+                <input
+                  type="checkbox"
+                  checked={useStream}
+                  onChange={(e) => setUseStream(e.target.checked)}
+                  style={{ marginRight: 6 }}
+                />
+                Streaming GM
+              </label>
             </p>
 
             <div className="tab-nav">

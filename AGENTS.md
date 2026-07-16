@@ -117,18 +117,24 @@ Mọi lệnh hỗ trợ `--json`.
 | `XMV_WORLD_SCALE` | `standard` | Default scale |
 | `XMV_FEATURES_DISABLED` | — | Comma feature ids |
 
-## Completion criteria (v1.2.0)
+## v1.3.0 platform features
 
-Platform single-player open-world được coi là **hoàn thiện** khi:
+| Module | API highlights |
+|--------|----------------|
+| Auth | `POST /auth/register`, `/auth/login`, `GET /auth/me` |
+| Multiplayer | `POST /worlds/:id/share`, `/multiplayer/join`, `/players/:id/presence`, `GET /worlds/:id/online` |
+| Marketplace | `GET /market/packs`, `POST /market/publish`, `POST /market/packs/:id/install` |
+| Streaming | `POST /players/:id/act/stream` (SSE) |
+| PWA | `/manifest.webmanifest`, `/sw.js` |
 
-1. Tạo world từ story/movie với scale tùy chỉnh  
-2. Bản đồ graph + travel có rule connection  
-3. Roleplay + RPG (stats, inventory, dice)  
-4. Quest / journal / discovery  
-5. Save-load + export/import pack  
-6. CLI agent JSON + UI web  
-7. Module registry + feature flags  
-8. Unit + smoke E2E pass (`npm run verify`)  
-9. OSS: LICENSE, SECURITY, CI, CONTRIBUTING, CHANGELOG  
+## Completion criteria (v1.3.0)
 
-Ngoài scope v1 (có thể làm sau): multiplayer, auth cloud, streaming AI, marketplace packs.
+1. Open-world graph + scales + modular services  
+2. Roleplay / RPG / quest / journal / discovery  
+3. Save-load + export/import  
+4. Auth local + multiplayer share/presence  
+5. Marketplace packs + streaming GM + PWA mobile  
+6. `npm run verify` (unit + smoke E2E) PASS  
+7. OSS docs + CI  
+
+Future (optional): OAuth cloud, realtime websocket rooms, native mobile shells.

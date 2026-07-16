@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
-  <a href="./CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-1.2.0-blue.svg" /></a>
+  <a href="./CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-1.3.0-blue.svg" /></a>
   <a href="./CHANGELOG.md"><img alt="Changelog" src="https://img.shields.io/badge/Changelog-Keep%20a%20Changelog-blue.svg" /></a>
   <a href="https://nodejs.org"><img alt="Node.js" src="https://img.shields.io/badge/Node.js-%3E%3D18-green.svg" /></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.5-blue.svg" /></a>
@@ -16,7 +16,7 @@
 
 ## Giới thiệu
 
-**XMultiverse** (v1.2.0) là platform **modular open-world**: nhập cốt truyện/phim → AI (hoặc demo mode) sinh **đồ thị địa điểm** theo **scale** (compact → epic), factions, timeline, NPC, quests. Người chơi / AI agent **du hành**, **nhập vai**, **quest/journal**, **save/export**. Feature flags bật/tắt module; mở rộng bằng `modules/*/service.ts`.
+**XMultiverse** (v1.3.0) là platform **modular open-world**: cốt truyện/phim → world graph (scale compact→epic), roleplay/RPG, **auth**, **multiplayer share**, **marketplace packs**, **streaming GM**, **PWA mobile**. Feature flags + `modules/*/service.ts`.
 
 ## Tính năng
 
