@@ -3,12 +3,7 @@ import type { World, Player, RoleplayResult, SaveSnapshot, ChatMessage } from '.
 import { api } from '../services/api';
 import { EventForm } from '../components/EventForm';
 import { Timeline } from '../components/Timeline';
-import {
-  FactionList,
-  CharacterList,
-  QuestList,
-  LocationMap,
-} from '../components/WorldDetails';
+import { FactionList, CharacterList, QuestList, LocationMap } from '../components/WorldDetails';
 import { RoleplayPanel } from '../components/RoleplayPanel';
 import { StatsPanel } from '../components/StatsPanel';
 import { InventoryPanel } from '../components/InventoryPanel';
@@ -333,10 +328,7 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
                   ['map', '🗺️ Map'],
                   ['stats', '📊 Stats'],
                   ['inventory', `🎒 Túi đồ (${player.inventory?.length || 0})`],
-                  [
-                    'relationships',
-                    `🤝 NPCs (${Object.keys(player.relationships || {}).length})`,
-                  ],
+                  ['relationships', `🤝 NPCs (${Object.keys(player.relationships || {}).length})`],
                   ['dice', '🎲 Dice'],
                   ['saves', `💾 Saves (${saves.length})`],
                 ] as [Tab, string][]
@@ -367,9 +359,7 @@ export function WorldView({ world, onWorldUpdated, onBack }: WorldViewProps) {
               />
             )}
             {activeTab === 'stats' && player.stats && <StatsPanel stats={player.stats} />}
-            {activeTab === 'inventory' && (
-              <InventoryPanel player={player} onUpdate={setPlayer} />
-            )}
+            {activeTab === 'inventory' && <InventoryPanel player={player} onUpdate={setPlayer} />}
             {activeTab === 'relationships' && (
               <RelationshipsPanel relationships={player.relationships || {}} />
             )}

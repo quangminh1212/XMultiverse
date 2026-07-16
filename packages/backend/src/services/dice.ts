@@ -57,7 +57,11 @@ export function inferStatFromAction(action: string): keyof PlayerStats | null {
   ) {
     return 'charisma';
   }
-  if (/gamble|luck|random|guess|try|chance|cược|cuoc|may|ngẫu|ngau|đoán|doan|thử|thu|may mắn/i.test(lower)) {
+  if (
+    /gamble|luck|random|guess|try|chance|cược|cuoc|may|ngẫu|ngau|đoán|doan|thử|thu|may mắn/i.test(
+      lower,
+    )
+  ) {
     return 'luck';
   }
   return null;

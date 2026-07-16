@@ -1470,7 +1470,9 @@ button.lg {
   color: var(--text) !important;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .preset-card:hover {

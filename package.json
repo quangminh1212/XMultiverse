@@ -1,9 +1,30 @@
 {
   "name": "xmultiverse",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "AI-powered world builder: turn any story into an open world you can step into.",
+  "description": "AI-powered open-world platform: turn any story, film, or book into a navigable world you can explore and roleplay in.",
   "license": "MIT",
+  "author": "XMultiverse Contributors",
+  "homepage": "https://github.com/xmultiverse/xmultiverse#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xmultiverse/xmultiverse.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xmultiverse/xmultiverse/issues"
+  },
+  "keywords": [
+    "ai",
+    "rpg",
+    "open-world",
+    "worldbuilding",
+    "roleplay",
+    "interactive-fiction",
+    "typescript",
+    "express",
+    "react",
+    "cli"
+  ],
   "workspaces": [
     "packages/*"
   ],
@@ -13,8 +34,11 @@
     "start": "npm run start --workspace=@xmultiverse/backend",
     "cli": "npm run dev --workspace=@xmultiverse/cli",
     "xmv": "npm run dev --workspace=@xmultiverse/cli --",
+    "test": "npm run test --workspace=@xmultiverse/backend",
     "lint": "prettier --check \"**/*.{ts,tsx,js,json,css,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\"",
+    "typecheck": "npm run build --workspace=@xmultiverse/backend && npm run build --workspace=@xmultiverse/cli && tsc -p packages/frontend --noEmit",
+    "verify": "npm run lint && npm run test && npm run build",
     "clean": "rimraf packages/*/dist packages/*/node_modules node_modules data"
   },
   "devDependencies": {
@@ -23,7 +47,8 @@
     "rimraf": "^5.0.9"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "allowScripts": {
     "better-sqlite3@11.10.0": true,

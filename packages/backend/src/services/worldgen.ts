@@ -259,19 +259,14 @@ function buildDemoWorld(storyInput: string, sourceType: SourceType = 'story'): W
   };
 }
 
-function normalizeLocations(
-  raw: any[] | undefined,
-  geography: string[],
-): Location[] {
+function normalizeLocations(raw: any[] | undefined, geography: string[]): Location[] {
   if (Array.isArray(raw) && raw.length > 0) {
     return raw.map((loc: any) => ({
       id: uuidv4(),
       name: String(loc.name || 'Địa điểm lạ'),
       description: String(loc.description || ''),
       atmosphere: loc.atmosphere ? String(loc.atmosphere) : undefined,
-      connections: Array.isArray(loc.connections)
-        ? loc.connections.map(String)
-        : [],
+      connections: Array.isArray(loc.connections) ? loc.connections.map(String) : [],
       npcs: Array.isArray(loc.npcs) ? loc.npcs.map(String) : [],
       tags: Array.isArray(loc.tags) ? loc.tags.map(String) : undefined,
     }));
@@ -343,10 +338,7 @@ export async function generateWorldFromStory(
   };
 }
 
-export function findLocation(
-  world: World,
-  idOrName: string,
-): Location | undefined {
+export function findLocation(world: World, idOrName: string): Location | undefined {
   const locs = world.locations || [];
   return (
     locs.find((l) => l.id === idOrName) ||
@@ -362,9 +354,7 @@ export function getStartingLocation(world: World): Location | undefined {
 }
 
 export function canTravel(from: Location, to: Location): boolean {
-  return from.connections.some(
-    (c) => c.toLowerCase() === to.name.toLowerCase() || c === to.id,
-  );
+  return from.connections.some((c) => c.toLowerCase() === to.name.toLowerCase() || c === to.id);
 }
 
 export interface TravelResult {
@@ -398,14 +388,9 @@ export function travelToLocation(
     );
   }
 
-  const npcLine =
-    target.npcs.length > 0
-      ? ` Bạn có thể gặp: ${target.npcs.join(', ')}.`
-      : '';
+  const npcLine = target.npcs.length > 0 ? ` Bạn có thể gặp: ${target.npcs.join(', ')}.` : '';
   const connLine =
-    target.connections.length > 0
-      ? ` Từ đây có thể đi tới: ${target.connections.join(', ')}.`
-      : '';
+    target.connections.length > 0 ? ` Từ đây có thể đi tới: ${target.connections.join(', ')}.` : '';
 
   const scene = `${player.name} đến ${target.name}. ${target.description}${
     target.atmosphere ? ` Không khí: ${target.atmosphere}.` : ''
@@ -488,9 +473,7 @@ function buildDemoRoleplayResponse(input: RoleplayInput): RoleplayResult {
 
   // Travel intent (accented + unaccented Vietnamese)
   if (/đi tới|đi đến|di toi|di den|travel|go to|move to|đến |den /i.test(lower)) {
-    const match = world.locations?.find((l) =>
-      lower.includes(l.name.toLowerCase()),
-    );
+    const match = world.locations?.find((l) => lower.includes(l.name.toLowerCase()));
     if (match) {
       try {
         const result = travelToLocation(world, player, match.id);
@@ -562,10 +545,7 @@ function buildDemoRoleplayResponse(input: RoleplayInput): RoleplayResult {
 
   // Talk / social
   if (/talk|speak|ask|negotiate|nói|noi|hỏi|hoi|thuyết|thuyet|chuyện|chuyen/i.test(lower)) {
-    const npc =
-      location?.npcs[0] ||
-      world.characters[0]?.name ||
-      'Người lạ';
+    const npc = location?.npcs[0] || world.characters[0]?.name || 'Người lạ';
     const relChange: RelationshipChange = {
       npc,
       trust: 5,

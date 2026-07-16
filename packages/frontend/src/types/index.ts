@@ -62,15 +62,7 @@ export type ItemType = 'weapon' | 'armor' | 'potion' | 'key' | 'misc' | 'quest';
 
 export interface ItemEffect {
   stat:
-    | 'hp'
-    | 'maxHp'
-    | 'mp'
-    | 'maxMp'
-    | 'strength'
-    | 'agility'
-    | 'intelligence'
-    | 'charisma'
-    | 'luck';
+    'hp' | 'maxHp' | 'mp' | 'maxMp' | 'strength' | 'agility' | 'intelligence' | 'charisma' | 'luck';
   modifier: number;
   duration?: 'instant' | 'permanent' | 'temporary';
 }

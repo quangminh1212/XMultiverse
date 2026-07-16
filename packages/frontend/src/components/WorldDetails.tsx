@@ -48,13 +48,7 @@ export function CharacterList({ characters }: { characters: Character[] }) {
   );
 }
 
-export function QuestList({
-  quests,
-  questLog,
-}: {
-  quests: Quest[];
-  questLog?: QuestProgress[];
-}) {
+export function QuestList({ quests, questLog }: { quests: Quest[]; questLog?: QuestProgress[] }) {
   return (
     <div className="card">
       <div className="section-label">Nhiệm vụ</div>

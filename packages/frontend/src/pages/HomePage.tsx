@@ -145,7 +145,9 @@ export function HomePage() {
                 {loading ? 'Đang kiến tạo...' : 'Kiến tạo thế giới'}
               </button>
               <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
-                {storyInput.trim().length > 0 ? `${storyInput.trim().length} ký tự · ${sourceType}` : ''}
+                {storyInput.trim().length > 0
+                  ? `${storyInput.trim().length} ký tự · ${sourceType}`
+                  : ''}
               </span>
             </div>
           </form>
