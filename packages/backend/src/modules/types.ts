@@ -23,4 +23,8 @@ export interface ModuleStatus {
   feature?: FeatureId;
   enabled: boolean;
   mounted: boolean;
+  /** Watchdog health (AUTOSAR-inspired isolation). */
+  health?: string;
+  circuit?: string;
+  runnable?: boolean;
 }

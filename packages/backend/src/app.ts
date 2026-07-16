@@ -5,6 +5,17 @@ import { notFoundHandler, errorHandler } from './middleware/error-handlers';
 import { rateLimit } from './middleware/rate-limit';
 import { config } from './config';
 import { defaultScaleId } from './config/world-scale';
+import { rte } from './modules/runtime';
+import { error as logError, warn } from './services/logger';
+
+// Process-level isolation: never let a stray module error kill the whole process
+process.on('uncaughtException', (err) => {
+  logError('process', `uncaughtException (isolated): ${err.message}`);
+  logError('process', err.stack || '');
+});
+process.on('unhandledRejection', (reason: any) => {
+  warn('process', `unhandledRejection (isolated): ${reason?.message || reason}`);
+});
 
 const app = express();
 
@@ -39,13 +50,18 @@ const rlWindow = Number(process.env.RATE_LIMIT_WINDOW_MS) || 60_000;
 app.use('/api', rateLimit({ max: rlMax, windowMs: rlWindow, keyPrefix: 'api' }));
 
 app.get('/health', (_req, res) => {
+  const rt = rte.health();
+  const open = rt.modules.filter((m) => m.circuit === 'OPEN').length;
   res.json({
-    status: 'ok',
+    status: open > 0 ? 'degraded' : 'ok',
     demoMode: config.ai.demoMode,
     version: process.env.npm_package_version || '1.3.0',
     uptime: Math.floor(process.uptime()),
     defaultScale: defaultScaleId(),
     modular: true,
+    isolation: 'autosar-swc',
+    mode: rt.mode.mode,
+    modulesOpen: open,
   });
 });
 

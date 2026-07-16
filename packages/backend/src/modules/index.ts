@@ -8,6 +8,7 @@
  */
 export { createApiRouter, listModules, MODULES, SERVICE_MODULES } from './registry';
 export type { FeatureModule, ModuleStatus } from './types';
+export { rte, isModuleRunnable, isolateRouter } from './runtime';
 
 export * as worldService from './world/service';
 export * as travelService from './travel/service';

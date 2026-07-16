@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **AUTOSAR-inspired isolation runtime** (`modules/runtime`): Mode Manager, Watchdog/Circuit Breaker, RTE invoke, per-SWC HTTP `isolateRouter`.
+- Ops API: `GET /api/runtime/health`, `POST /api/runtime/modes/:mode`, module reset/disable.
+- AI calls go through RTE with timeout so a hung model does not freeze other modules.
+
 ## [1.3.0] - 2026-07-16
 
 ### Added

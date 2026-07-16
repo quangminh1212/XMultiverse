@@ -117,6 +117,26 @@ Mọi lệnh hỗ trợ `--json`.
 | `XMV_WORLD_SCALE` | `standard` | Default scale |
 | `XMV_FEATURES_DISABLED` | — | Comma feature ids |
 
+## Isolation runtime (AUTOSAR-inspired)
+
+Modules are **software components (SWCs)** with independent health:
+
+| Concept | Implementation |
+|---------|----------------|
+| SWC | `modules/*` + feature id |
+| RTE | `modules/runtime/rte.ts` — `rte.invoke(id, op, fn)` |
+| Watchdog / CB | circuit CLOSED → OPEN after N failures; auto HALF_OPEN |
+| Mode Manager | `full` \| `core` \| `degraded` \| `safe` (`XMV_MODE`) |
+| HTTP isolation | `isolateRouter(id, router)` — 5xx stays in that SWC |
+
+```bash
+curl http://localhost:3001/api/runtime/health
+curl -X POST http://localhost:3001/api/runtime/modes/core
+curl -X POST http://localhost:3001/api/runtime/modules/marketplace/reset
+```
+
+Env: `XMV_MODULE_TIMEOUT_MS`, `XMV_CB_FAILURES`, `XMV_CB_OPEN_MS`, `XMV_AI_TIMEOUT_MS`, `XMV_MODE`.
+
 ## v1.3.0 platform features
 
 | Module | API highlights |
