@@ -5,26 +5,26 @@ Tài liệu này dành cho các AI agent muốn tương tác với **XMultiverse
 ## Quick Start
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm run build
 
 # Demo mode (không cần AI key)
 # packages/backend/.env → DEMO_MODE=true
 
-npm run xmv -- start --json
-npm run xmv -- world create --story "..." --source movie --scale expansive --json
-npm run xmv -- player create --world <WORLD_ID> --name "Kael" --role "Warrior" --json
-npm run xmv -- travel --id <PLAYER_ID> --to "Location Name" --json
-npm run xmv -- act --id <PLAYER_ID> --action "Explore" --json
-npm run xmv -- world export --id <WORLD_ID> --out pack.xmv.json --json
-npm run xmv -- stop --json
+pnpm run xmv -- start --json
+pnpm run xmv -- world create --story "..." --source movie --scale expansive --json
+pnpm run xmv -- player create --world <WORLD_ID> --name "Kael" --role "Warrior" --json
+pnpm run xmv -- travel --id <PLAYER_ID> --to "Location Name" --json
+pnpm run xmv -- act --id <PLAYER_ID> --action "Explore" --json
+pnpm run xmv -- world export --id <WORLD_ID> --out pack.xmv.json --json
+pnpm run xmv -- stop --json
 ```
 
 ## Quality gate
 
 ```bash
-npm run verify   # lint + unit/smoke tests + build
-npm run smoke    # E2E API loop only
+pnpm run verify   # lint + unit/smoke tests + build
+pnpm run smoke    # E2E API loop only
 ```
 
 ## Open-world scales
@@ -154,7 +154,7 @@ Env: `XMV_MODULE_TIMEOUT_MS`, `XMV_CB_FAILURES`, `XMV_CB_OPEN_MS`, `XMV_AI_TIMEO
 3. Save-load + export/import  
 4. Auth local + multiplayer share/presence  
 5. Marketplace packs + streaming GM + PWA mobile  
-6. `npm run verify` (unit + smoke E2E) PASS  
+6. `pnpm run verify` (unit + smoke E2E) PASS  
 7. OSS docs + CI  
 
 Future (optional): OAuth cloud, realtime websocket rooms, native mobile shells.

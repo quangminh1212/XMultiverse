@@ -174,14 +174,14 @@ export async function cmdDoctor(): Promise<void> {
       name: 'Dependencies',
       ok: false,
       detail: 'node_modules chưa cài',
-      fix: 'Chạy: npm install',
+      fix: 'Chạy: pnpm install',
     });
-    missingItems.push('node_modules — chạy: npm install');
+    missingItems.push('node_modules — chạy: pnpm install');
   }
 
   // Determine next steps
   if (!nodeModulesExists) {
-    nextSteps.push('Chạy: npm install (cài dependencies)');
+    nextSteps.push('Chạy: pnpm install (cài dependencies)');
   }
   if (!env.hasEnvFile) {
     const copyCmd =

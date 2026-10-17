@@ -1,5 +1,10 @@
+﻿# pnpm project configuration.
+# Required: pnpm >= 12 reads these settings only from this file, not from ~/.npmrc.
+# Single-package project: "packages: []" keeps pnpm from scanning parent directories.
 packages:
-  - packages/*
+  - 'packages/*'
+
+autoInstallPeers: true
 engineStrict: true
 strictPeerDependencies: false
 

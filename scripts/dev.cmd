@@ -6,5 +6,5 @@ set "PROJECT_ROOT=%SCRIPT_DIR%.."
 
 echo [XMultiverse] Starting backend + frontend...
 cd /d "%PROJECT_ROOT%"
-call npm run dev
+call pnpm run dev
 endlocal

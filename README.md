@@ -15,9 +15,9 @@ AI-powered modular open-world platform.
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Module / AUTOSAR layout |
 
 ```bash
-npm install
+pnpm install
 # packages/backend/.env → DEMO_MODE=true
-npm run dev
+pnpm run dev
 ```
 
 License: [MIT](./LICENSE)

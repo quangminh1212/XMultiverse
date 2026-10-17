@@ -6,15 +6,15 @@ Cảm ơn bạn quan tâm đến việc đóng góp cho XMultiverse! Tài liệu
 
 1. Fork repository này.
 2. Clone fork của bạn: `git clone https://github.com/<your-username>/XMultiverse.git`
-3. Cài đặt dependencies: `npm install`
+3. Cài đặt dependencies: `pnpm install`
 4. Tạo một branch mới cho tính năng/sửa lỗi của bạn: `git checkout -b feature/my-feature`
 
 ## Development setup
 
 ```bash
-npm install
+pnpm install
 cp .env.example packages/backend/.env   # or set DEMO_MODE=true
-npm run dev                             # backend :3001 + frontend :5173
+pnpm run dev                             # backend :3001 + frontend :5173
 ```
 
 ## Code standards
@@ -30,15 +30,15 @@ npm run dev                             # backend :3001 + frontend :5173
 - Before opening a PR, run:
 
 ```bash
-npm run verify   # lint + test + build
+pnpm run verify   # lint + test + build
 ```
 
-Or step by step: `npm run format` → `npm test` → `npm run build`.
+Or step by step: `pnpm run format` → `pnpm test` → `pnpm run build`.
 
 ## Pull request process
 
 1. Branch from `main` (`feature/*`, `fix/*`, `chore/*`).
-2. Pass `npm run verify`.
+2. Pass `pnpm run verify`.
 3. Open a PR using the template; describe problem, approach, and test plan.
 4. Update [CHANGELOG.md](./CHANGELOG.md) for user-facing changes.
 5. Wait for review; address feedback.

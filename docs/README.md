@@ -36,12 +36,12 @@
 | Yêu cầu     | Phiên bản    | Ghi chú                                  |
 | ----------- | ------------ | ---------------------------------------- |
 | Node.js     | >= 18        | Cần thiết cho `fetch` built-in           |
-| npm         | >= 9         | Đi kèm Node.js                           |
+| pnpm         | >= 9         | Đi kèm Node.js                           |
 | Hệ điều hành| Windows 10+ / macOS 11+ / Linux (glibc 2.31+) | `better-sqlite3` cần native build |
 
 ### Ghi chú theo nền tảng
 
-- **Windows**: `better-sqlite3` cần Visual Studio Build Tools (cài qua `npm install -g windows-build-tools` hoặc "Desktop development with C++" workload trong VS Installer). Hoặc dùng prebuilt binary (mặc định).
+- **Windows**: `better-sqlite3` cần Visual Studio Build Tools (cài qua `pnpm install -g windows-build-tools` hoặc "Desktop development with C++" workload trong VS Installer). Hoặc dùng prebuilt binary (mặc định).
 - **macOS**: Cần Xcode Command Line Tools (`xcode-select --install`).
 - **Linux**: Cần `python3`, `make`, `g++` (cho native build). Trên Ubuntu/Debian: `sudo apt install build-essential python3`.
 
@@ -52,7 +52,7 @@
 | Backend    | Node.js, Express, TypeScript, SQLite (better-sqlite3) |
 | Frontend   | React, Vite, TypeScript                            |
 | AI         | Bất kỳ API tương thích OpenAI (OpenAI, Groq, Gemini, OpenRouter...) |
-| Monorepo   | npm workspaces                                     |
+| Monorepo   | pnpm workspaces                                     |
 
 ## Cấu trúc dự án
 
@@ -106,7 +106,7 @@ xmultiverse/
 ### Yêu cầu
 
 - [Node.js](https://nodejs.org/) >= 18
-- npm (đi kèm Node.js)
+- pnpm (đi kèm Node.js)
 - Một API key AI (OpenAI, Groq, Gemini, OpenRouter...)
 
 ### Các bước
@@ -116,7 +116,7 @@ xmultiverse/
    ```bash
    git clone <repo-url> XMultiverse
    cd XMultiverse
-   npm install
+   pnpm install
    ```
 
 2. **Cấu hình môi trường:**
@@ -169,7 +169,7 @@ xmultiverse/
 3. **Chạy ứng dụng:**
 
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 
    - Frontend: http://localhost:5173
@@ -180,7 +180,7 @@ xmultiverse/
 
 ```bash
 # Build CLI trước (nếu chưa build)
-npm run build
+pnpm run build
 
 # Chạy CLI trực tiếp
 node packages/cli/dist/index.js help
@@ -189,7 +189,7 @@ node packages/cli/dist/index.js start
 node packages/cli/dist/index.js world create --story "..." --json
 
 # Hoặc link globally
-npm link
+pnpm link
 xmv help
 ```
 
@@ -247,14 +247,14 @@ Log file tự động xóa khi vượt quá 100MB.
 
 | Command           | Mô tả                                         |
 | ----------------- | --------------------------------------------- |
-| `npm run dev`     | Backend + frontend song song                  |
-| `npm run build`   | Build backend, frontend, CLI                  |
-| `npm run start`   | Backend production                            |
-| `npm test`        | Unit tests (Vitest, backend)                  |
-| `npm run verify`  | lint + test + build (CI-equivalent)           |
-| `npm run lint`    | Prettier check                                |
-| `npm run format`  | Prettier write                                |
-| `npm run clean`   | Xóa dist, node_modules, data                  |
+| `pnpm run dev`     | Backend + frontend song song                  |
+| `pnpm run build`   | Build backend, frontend, CLI                  |
+| `pnpm run start`   | Backend production                            |
+| `pnpm test`        | Unit tests (Vitest, backend)                  |
+| `pnpm run verify`  | lint + test + build (CI-equivalent)           |
+| `pnpm run lint`    | Prettier check                                |
+| `pnpm run format`  | Prettier write                                |
+| `pnpm run clean`   | Xóa dist, node_modules, data                  |
 
 ## Security
 

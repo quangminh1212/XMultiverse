@@ -28,7 +28,7 @@ What actually happened.
 
 - OS:
 - Node.js version (`node -v`):
-- npm version (`npm -v`):
+- pnpm version (`pnpm -v`):
 - Package version / commit:
 - Demo mode? (yes/no):
 - Browser (if frontend):

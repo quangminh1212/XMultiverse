@@ -12,9 +12,9 @@ Brief description of the change.
 
 ## Checklist
 
-- [ ] `npm run build` passes
-- [ ] `npm test` passes
-- [ ] `npm run lint` passes (or ran `npm run format`)
+- [ ] `pnpm run build` passes
+- [ ] `pnpm test` passes
+- [ ] `pnpm run lint` passes (or ran `pnpm run format`)
 - [ ] Conventional Commit message
 - [ ] docs/CHANGELOG.md updated (if user-facing)
 - [ ] docs/AGENTS.md updated (if CLI/API changed)

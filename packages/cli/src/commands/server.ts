@@ -28,7 +28,7 @@ function ensureDataDir(): void {
 /**
  * Decide how to launch the backend:
  *  - If dist/index.js exists (build đã chạy): dùng `node dist/index.js` — production, nhanh, ổn định.
- *  - Else nếu src/index.ts tồn tại: dùng `npx tsx src/index.ts` — dev mode.
+ *  - Else nếu src/index.ts tồn tại: dùng `pnpm dlx tsx src/index.ts` — dev mode.
  *  - Else: lỗi.
  */
 function buildLaunchCommand(): { cmd: string; args: string[]; label: string } {
@@ -37,7 +37,7 @@ function buildLaunchCommand(): { cmd: string; args: string[]; label: string } {
   }
   if (existsSync(BACKEND_SRC)) {
     const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    return { cmd: npx, args: ['tsx', BACKEND_SRC], label: 'npx tsx src/index.ts' };
+    return { cmd: npx, args: ['tsx', BACKEND_SRC], label: 'pnpm dlx tsx src/index.ts' };
   }
   throw new Error(`Không tìm thấy backend entry point: ${BACKEND_DIST} hoặc ${BACKEND_SRC}`);
 }

@@ -8,5 +8,5 @@ REM Find project root (where package.json is)
 set "SCRIPT_DIR=%~dp0"
 set "PROJECT_ROOT=%SCRIPT_DIR%.."
 
-REM Run via npx tsx (dev mode) — no build needed
-npx tsx "%PROJECT_ROOT%\packages\cli\src\index.ts" %*
+REM Run via pnpm dlx tsx (dev mode) — no build needed
+pnpm dlx tsx "%PROJECT_ROOT%\packages\cli\src\index.ts" %*
