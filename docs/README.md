@@ -172,7 +172,7 @@ xmultiverse/
    pnpm run dev
    ```
 
-   - Frontend: http://localhost:5173
+   - Frontend: http://localhost:5174
    - Backend: http://localhost:3001
    - Health check: http://localhost:3001/health
 
@@ -205,7 +205,7 @@ Log file tự động xóa khi vượt quá 100MB.
 
 ## Cách sử dụng
 
-1. Mở frontend tại http://localhost:5173.
+1. Mở frontend tại http://localhost:5174.
 2. Nhập cốt truyện/truyện vào ô **"Tạo thế giới mới"**.
 3. Nhấn **"Kiến tạo thế giới"** — AI sẽ sinh ra thế giới, timeline, nhân vật, phe phái, nhiệm vụ.
 4. Tạo nhân vật và nhấn **"Bước vào thế giới"**.

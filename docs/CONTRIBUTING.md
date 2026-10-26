@@ -14,7 +14,7 @@ Cảm ơn bạn quan tâm đến việc đóng góp cho XMultiverse! Tài liệu
 ```bash
 pnpm install
 cp .env.example packages/backend/.env   # or set DEMO_MODE=true
-pnpm run dev                             # backend :3001 + frontend :5173
+pnpm run dev                             # backend :3001 + frontend :5174
 ```
 
 ## Code standards
